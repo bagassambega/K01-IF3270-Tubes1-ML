@@ -5,7 +5,7 @@ class Perceptron:
     """
     Implementation of one Perceptron
     """
-    def __init__(self, weights: np.ndarray, activation_function: Callable, inputs: np.ndarray):
+    def __init__(self, weights: np.ndarray, activation_function: Callable[[float], float], inputs: np.ndarray):
         """
         Create a perceptron. Receives matrix of weights (also with the bias), activation function, and matrix of inputs (x0 included)
         """
@@ -24,3 +24,15 @@ class Perceptron:
         Called activation function
         """
         return self.activation_function(x)
+
+    def set_weights(self, weights: np.ndarray):
+        """
+        Setter for weights for a perceptron
+        """
+        self.weights = weights
+
+    def set_inputs(self, inputs: np.ndarray):
+        """
+        Setter for inputs for a perceptron
+        """
+        self.inputs = inputs
