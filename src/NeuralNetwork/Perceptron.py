@@ -1,22 +1,26 @@
-from typing import List
-from PerceptronException import PerceptronException
+from typing import Callable
+import numpy as np
 
 class Perceptron:
-    def __init__(self, activation_function: function, inputs: List[any], weights: List[float]):
+    """
+    Implementation of one Perceptron
+    """
+    def __init__(self, weights: np.ndarray, activation_function: Callable, inputs: np.ndarray):
+        """
+        Create a perceptron. Receives matrix of weights (also with the bias), activation function, and matrix of inputs (x0 included)
+        """
         self.activation_function = activation_function
-        self.inputs = inputs
         self.weights = weights
-    
+        self.inputs = inputs
+
     def net(self) -> float:
-        sum: float = 0
-        if (len(self.inputs) != len(self.weights)):
-            raise PerceptronException("Number of inputs are not match with number of weights")
-        elif (len(self.inputs) == 0):
-            raise PerceptronException("No input found")
-        elif (len(self.weights) == 0):
-            raise PerceptronException("No weight found")
-        else:
-            for i in range(len(self.inputs)):
-                sum += self.inputs[i] * self.weights[i]
-        
-        return sum
+        """
+        Calculate net/sigma by multiplying each input and its weight, and sum all of them
+        """
+        return float(np.dot(self.weights.T, self.inputs))
+
+    def activate(self, x: float) -> float:
+        """
+        Called activation function
+        """
+        return self.activation_function(x)
