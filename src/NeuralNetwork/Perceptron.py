@@ -1,11 +1,18 @@
 from typing import Callable
 import numpy as np
 
+
 class Perceptron:
     """
     Implementation of one Perceptron
     """
-    def __init__(self, weights: np.ndarray, activation_function: Callable[[float], float], inputs: np.ndarray):
+
+    def __init__(
+        self,
+        weights: np.ndarray,
+        activation_function: Callable[[float], float],
+        inputs: np.ndarray,
+    ):
         """
         Create a perceptron. Receives matrix of weights (also with the bias), activation function, and matrix of inputs (x0 included)
         """
