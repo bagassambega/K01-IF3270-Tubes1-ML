@@ -10,7 +10,7 @@ class FFNN:
     def __init__(
         self,
         num_layers: int,
-        activations: List[Callable],
+        activations: List[Callable[[float], float]],
         num_batch: Optional[int] = 0,
         learning_rate: Optional[float] = 0.5,
         epoch: Optional[float] = 1,
@@ -20,7 +20,6 @@ class FFNN:
         Create new FFNN
 
         :param num_layers: Number of layers including input and output layers.
-        :param layer_structure: List defining the number of neurons in each layer.
         :param activations: List of activation functions for each layer (except input).
         :param num_batch: Number of batch.
         :param learning_rate: Learning rate value.
@@ -38,7 +37,6 @@ class FFNN:
         self.X = None
         self.y = None
 
-        self.initialize_network()
 
     def initialize_network(
         self,
@@ -49,7 +47,7 @@ class FFNN:
         Initialize network layers and perceptrons with random weights.
         """
 
-        # TODO: create weight and input initialization
+        # TODO: create weight and input initialization. Use the self.X and self.y for the input initialization
         if weight_initialization:
             weight_initialization()
 
@@ -63,17 +61,22 @@ class FFNN:
         """
         self.X, self.y = fetch_openml(dataset, version=1, return_X_y=True)
 
+
     def set_parameter(
         self,
-        num_batch: Optional[int],
-        learning_rate: Optional[float],
-        epoch: Optional[float],
-        verbose: Optional[int],
+        num_batch: Optional[int] = None,
+        learning_rate: Optional[float] = None,
+        epoch: Optional[float] = None,
+        verbose: Optional[int] = None,
     ):
         """
         Change the parameter of number of batch, number of epoch, learning rate value, and/or verbose.
         """
-        self.num_batch = num_batch
-        self.learning_rate = learning_rate
-        self.epoch = epoch
-        self.verbose = verbose
+        if (num_batch and num_batch is not None):
+            self.num_batch = num_batch
+        if (learning_rate and learning_rate is not None):
+            self.learning_rate = learning_rate
+        if (epoch and epoch is not None):
+            self.epoch = epoch
+        if (verbose and num_batch is not None):
+            self.verbose = verbose
