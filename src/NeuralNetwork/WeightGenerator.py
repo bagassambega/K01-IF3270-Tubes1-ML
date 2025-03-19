@@ -21,7 +21,7 @@ def random_uniform_distribution(lower_bound, upper_bound, rowDim, colDim, seed=N
     
     #generate bias
     bias = round(random.uniform(lower_bound, upper_bound), 4)
-    biasMatrix = [[bias for _ in range(1)] for _ in range(colDim)]
+    biasMatrix = [[bias for _ in range(1)] for _ in range(rowDim)]
             
     return weightMatrix, biasMatrix
 
@@ -37,7 +37,7 @@ def normal_distribution(mean, variance, rowDim, colDim, seed=None):
 
     #generate bias
     bias = round(random.normalvariate(mean, math.sqrt(variance)), 4)
-    biasMatrix = [[bias for _ in range(1)] for _ in range(colDim)]
+    biasMatrix = [[bias for _ in range(1)] for _ in range(rowDim)]
 
 
     return weightMatrix, biasMatrix
