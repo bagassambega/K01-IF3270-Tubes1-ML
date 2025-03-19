@@ -1,6 +1,7 @@
 from typing import List, Callable
 import numpy as np
 from PerceptronException import PerceptronException
+from WeightGenerator import zeroInitialization, random_uniform_distribution, normal_distribution
 
 class FFNN:
     """
@@ -31,6 +32,7 @@ class FFNN:
             raise PerceptronException("Number of activations must be the same with number of hidden layers + 1 output layer")
 
         self.weights = [[] for _ in range(len(self.layers))]
+        self.bias = [[] for _ in range(len(self.layers))]
         self.loss_function = loss_function
         self.epochs = epochs
         self.batch_size = batch_size
@@ -43,12 +45,68 @@ class FFNN:
         Args:
             method (str, optional): weights initialization. Defaults to "random".
         """
-        # TODO: implement initialize weight
-        self.weights = [[] for _ in range(len(self.layers))]
-        for i, _ in enumerate(self.layers):
-            # Banyak weight antara layer (n-1) ke layer n = ((n-1)th layer + 1 (bias)) * layer n
-            self.weights[i] = np.random.rand(self.x.shape[1] + 1, self.layers[i]) # + 1 for bias, bias is the first row
 
+        if (method == "zero"):
+            for i, _ in enumerate(self.layers):
+                self.weights[i], self.bias[i] = zeroInitialization(rowDim=self.x.shape[1], colDim=self.layers[i])
+
+
+        elif(method == "normal"):
+            while True:
+                mean = input("Mean: ")
+                try:
+                    mean = float(mean)
+                    break
+                except ValueError:
+                    print("Mean must be a valid number")
+            
+            while True:
+                variance = input("Variance: ")
+                try:
+                    variance = float(variance)
+                    break
+                except ValueError:
+                    print("Variance must be a valid number")
+
+            seed = input("Seed: ")
+            if not(seed.isdigit()):
+                seed = None
+
+            for i, _ in enumerate(self.layers):
+                if i == 0:
+                    self.weights[i], self.bias[i] = normal_distribution(mean=mean, variance=variance, rowDim=self.x.shape[1], colDim=self.layers[i], seed=seed)
+                else:
+                    self.weights[i], self.bias[i] = normal_distribution(mean=mean, variance=variance, rowDim=self.layers[i - 1], colDim=self.layers[i], seed=seed)
+
+        else:
+            while True:
+                lower_bound = input("Lower bound: ")
+                try:
+                    lower_bound = float(lower_bound)
+                    break
+                except ValueError:
+                    print("Lower bound must be a valid number")
+            
+            while True:
+                upper_bound = input("Upper bound: ")
+                try:
+                    variance = float(variance)
+                    if(upper_bound > lower_bound):
+                        break
+                    else:
+                        print("Upper bound must be greater than lower bound")
+                except ValueError:
+                    print("Variance must be a valid number")
+
+            seed = input("Seed: ")
+            if not(seed.isdigit()):
+                seed = None
+
+            for i, _ in enumerate(self.layers):
+                if i == 0:
+                    self.weights[i], self.bias[i] = random_uniform_distribution(lower_bound=lower_bound, upper_bound=upper_bound, rowDim=self.x.shape[1], colDim=self.layers[i], seed=seed)
+                else:
+                    self.weights[i], self.bias[i] = random_uniform_distribution(lower_bound=lower_bound, upper_bound=upper_bound, rowDim=self.layers[i - 1], colDim=self.layers[i], seed=seed)
 
     def net(self, inputs, weight):
         """
