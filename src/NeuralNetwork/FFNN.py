@@ -1,7 +1,7 @@
 from typing import List, Callable
 import numpy as np
 from PerceptronException import PerceptronException
-from WeightGenerator import zeroInitialization, random_uniform_distribution, normal_distribution
+from WeightGenerator import zeroInitialization, random_uniform_distribution, normal_distribution, xavier_initialization, he_initialization
 
 class FFNN:
     """
@@ -46,12 +46,11 @@ class FFNN:
             method (str, optional): weights initialization. Defaults to "random".
         """
 
-        if (method == "zero"):
+        if (method == "zero"): # Zero initialization
             for i, _ in enumerate(self.layers):
                 self.weights[i], self.bias[i] = zeroInitialization(rowDim=self.x.shape[1], colDim=self.layers[i])
 
-
-        elif(method == "normal"):
+        elif(method == "normal"): # Normal distribution
             while True:
                 mean = input("Mean: ")
                 try:
@@ -77,8 +76,22 @@ class FFNN:
                     self.weights[i], self.bias[i] = normal_distribution(mean=mean, variance=variance, rowDim=self.x.shape[1], colDim=self.layers[i], seed=seed)
                 else:
                     self.weights[i], self.bias[i] = normal_distribution(mean=mean, variance=variance, rowDim=self.layers[i - 1], colDim=self.layers[i], seed=seed)
+        
+        elif(method == "xavier"): # Xavier initialization
+            for i, _ in enumerate(self.layers):
+                if i == 0:
+                    self.weights[i], self.bias[i] = xavier_initialization(rowDim=self.x.shape[1], colDim=self.layers[i], seed=seed)
+                else:
+                    self.weights[i], self.bias[i] = xavier_initialization(rowDim=self.layers[i - 1], colDim=self.layers[i], seed=seed)
 
-        else:
+        elif(method == "he"): # He initialization
+            for i, _ in enumerate(self.layers):
+                if i == 0:
+                    self.weights[i], self.bias[i] = he_initialization(rowDim=self.x.shape[1], colDim=self.layers[i], seed=seed)
+                else:
+                    self.weights[i], self.bias[i] = he_initialization(rowDim=self.layers[i - 1], colDim=self.layers[i], seed=seed)
+
+        else: # Uniform distribution (default)
             while True:
                 lower_bound = input("Lower bound: ")
                 try:

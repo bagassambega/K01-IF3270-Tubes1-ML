@@ -39,6 +39,16 @@ def normal_distribution(mean, variance, rowDim, colDim, seed=None):
     bias = round(random.normalvariate(mean, math.sqrt(variance)), 4)
     biasMatrix = [[bias for _ in range(1)] for _ in range(rowDim)]
 
-
     return weightMatrix, biasMatrix
 
+# referensi bonus: https://machinelearningmastery.com/weight-initialization-for-deep-learning-neural-networks/
+def xavier_initialization(rowDim, colDim, seed=None):
+    lower_bound = -1 * (math.sqrt(6) / math.sqrt(rowDim + colDim))
+    upper_bound = math.sqrt(6) / math.sqrt(rowDim + colDim)
+
+    weightMatrix, biasMatrix = random_uniform_distribution(lower_bound, upper_bound, rowDim, colDim, seed)
+    return weightMatrix, biasMatrix
+
+def he_initialization(rowDim, colDim, seed=None):
+    weightMatrix, biasMatrix = normal_distribution(0, 2/rowDim, rowDim, colDim, seed)
+    return weightMatrix, biasMatrix
