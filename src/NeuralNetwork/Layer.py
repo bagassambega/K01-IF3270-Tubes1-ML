@@ -18,22 +18,90 @@ class Layer:
     def get_neuron(self): 
         return self.neurons
     
-    def random_weight(self, shape): 
-        weights = [] 
-        for i in range(shape[0] + 1): 
-            weights.append([])
-            for j in range(shape[1]): 
-                weights[i].append(random.uniform(-math.sqrt(6)/math.sqrt(shape[0] + shape[1]), math.sqrt(6)/math.sqrt(shape[0] + shape[1])))
-        return weights
+    # def random_weight(self, shape): 
+    #     weights = [] 
+    #     for i in range(shape[0] + 1): 
+    #         weights.append([])
+    #         for j in range(shape[1]): 
+    #             weights[i].append(random.uniform(-math.sqrt(6)/math.sqrt(shape[0] + shape[1]), math.sqrt(6)/math.sqrt(shape[0] + shape[1])))
+    #     return weights
 
+    def random_weight(self, shape, initMethod = 'default', **kwargs): 
+        """
+        Menghasilkan bobot (termasuk bias) dengan bentuk (input_dim+1, neurons).
+        
+        Parameter:
+          - shape: tuple, (input_dim, neurons)
+          - init_method: string, opsi 'zero', 'uniform', 'normal', atau default ('xavier')
+          - kwargs: parameter tambahan tergantung metode:
+             * uniform: lower_bound, upper_bound, seed
+             * normal: mean, variance, seed
+        """
+        rows = shape[0] + 1
+        cols = shape[1] 
+
+        # Zero initialization
+        if initMethod == "zero": 
+            return np.zeros((rows, cols))
+
+        # Random dengan distribusi uniform.
+        # Menerima parameter lower bound (batas minimal) dan upper bound (batas maksimal)
+        # Menerima parameter seed untuk reproducibility
+        elif initMethod == "uniform": 
+            lowerBound = kwargs.get('lower_bound', -np.sqrt(6)/np.sqrt(shape[0] + shape[1]))
+            upperBound = kwargs.get('upper_bound', np.sqrt(6)/np.sqrt(shape[0] + shape[1]))
+            seed = kwargs.get('seed', None)
+
+            if seed is not None: 
+                random.seed(seed)
+            weights = [] 
+            for i in range(rows):
+                row = []
+                for j in range(cols): 
+                    row.append(random.uniform(lowerBound, upperBound))
+                weights.append(row)
+            return np.array(weights)
+
+        # Random dengan distribusi normal.
+        # Menerima parameter mean dan variance
+        # Menerima parameter seed untuk reproducibility
+        elif initMethod == 'normal':
+            mean = kwargs.get('mean', 0)
+            variance = kwargs.get('variance', 1)
+            seed = kwargs.get('seed', None)
+            if seed is not None:
+                np.random.seed(seed)
+            std = math.sqrt(variance)
+            return np.random.normal(mean, std, size=(rows, cols))
+        
+        # Xavier/Glorot initialization
+        else:  
+            weights = []
+            for i in range(rows):
+                row = []
+                for j in range(cols):
+                    row.append(random.uniform(-np.sqrt(6)/np.sqrt(shape[0] + shape[1]),
+                                                np.sqrt(6)/np.sqrt(shape[0] + shape[1])))
+                weights.append(row)
+            return np.array(weights)
 
 class Dense(Layer): 
-    def __init__(self, neurons, activation=None, inputShape=None, inputWeight:np.array=None):
+    def __init__(
+            self, 
+            neurons, 
+            activation=None, 
+            inputShape=None, 
+            inputWeight:np.array=None,
+            weightInit = 'default', 
+            weightInitParams=None
+            ):
         super().__init__(neurons)
         self.neurons = neurons
         self.activation = get_activation_function(activation)
         self.inputShape = inputShape
         self.inputWeight = inputWeight
+        self.weightInit = weightInit
+        self.weightInitParams = weightInitParams if weightInitParams is not None else {}
         self.create()
     
     def __repr__(self):
@@ -46,13 +114,17 @@ class Dense(Layer):
     
     def create(self):
         if self.inputShape is not None: 
-            weigthsArr = np.array(self.random_weight(shape=(self.inputShape[0], self.neurons)))
+            weightsArr = self.random_weight(shape=(self.inputShape[0], self.neurons),
+                                            initMethod=self.weightInit,
+                                            **self.weightInitParams)
         else:
-            weigthsArr = np.array(self.inputWeight)
-        
-        self.weights = weigthsArr[1:]
-        self.bias = weigthsArr[0]
-        super().create(weigthsArr)
+            weightsArr = np.array(self.inputWeight)
+
+        # The first row is the bias and the remaining rows are the weights.
+        self.bias = weightsArr[0]
+        self.weights = weightsArr[1:]
+        super().create(weightsArr)
+
 
     
     def call(self, inputs: np.array):
@@ -65,27 +137,4 @@ class Dense(Layer):
 
     
 
-"""
-input dengan random
-"""
-# Sample input: one data point with 3 features
-inputs = np.array([[0.5, 0.2, -0.1]])
-
-# Create a Dense layer with 4 neurons, 'relu' activation, and input shape (3,)
-dense_layer = Dense(neurons=4, activation='relu', inputShape=(3,))
-
-# Perform feed forward propagation: compute the layer's output
-outputs = dense_layer.call(inputs)
-print("Layer hidden 1 output:", outputs)
-
-# Create a Dense layer with 2 neurons, 'sigmoid' activation, and input shape (4,)
-dense_layer = Dense(neurons=2, activation='sigmoid', inputShape=(4,))
-outputs = dense_layer.call(outputs)
-print("Layer output:", outputs)
-
-
-
-"""
-input manual 
-"""
 

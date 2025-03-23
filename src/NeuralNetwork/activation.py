@@ -21,6 +21,13 @@ def linear(x, derivative=False):
         return np.ones_like(x)
     return x
 
+def hyperbolic_tangent(x, derivative=False):
+    x = np.array(x, dtype=float)
+    if derivative:
+        return 1 - np.tanh(x) ** 2
+    return np.tanh(x)
+
+
 def get_activation_function(function_name):
     if function_name == "linear":
         return linear
@@ -28,5 +35,7 @@ def get_activation_function(function_name):
         return relu
     elif function_name == "sigmoid":
         return sigmoid
+    elif function_name == "tanh":
+        return hyperbolic_tangent
     else:
         raise Exception("Activation function not found.")
