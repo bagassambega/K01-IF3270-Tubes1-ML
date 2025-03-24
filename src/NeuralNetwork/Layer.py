@@ -101,8 +101,12 @@ class Dense(Layer):
         self.inputShape = inputShape
         self.inputWeight = inputWeight
         self.weightInit = weightInit
-        self.weightInitParams = weightInitParams if weightInitParams is not None else {}
+        self.weightInitParams = weightInitParams if weightInitParams is not None else None
+        # print(weightInit)
+        # print("weight init: ", self.weightInitParams)
         self.create()
+
+        ##debug
     
     def __repr__(self):
         return ''.join([
@@ -113,16 +117,20 @@ class Dense(Layer):
         ])
     
     def create(self):
-        if self.inputShape is not None: 
+        if self.weightInitParams is not None: 
+            # print("LHO KOK KESINI")
             weightsArr = self.random_weight(shape=(self.inputShape[0], self.neurons),
                                             initMethod=self.weightInit,
                                             **self.weightInitParams)
         else:
-            weightsArr = np.array(self.inputWeight)
+            # print("MASUK SINI")
+            weightsArr = self.inputWeight
 
         # The first row is the bias and the remaining rows are the weights.
         self.bias = weightsArr[0]
         self.weights = weightsArr[1:]
+        print("WEIGHT")
+        print(self.weights)
         super().create(weightsArr)
 
 
@@ -130,7 +138,7 @@ class Dense(Layer):
     def call(self, inputs: np.array):
         self.inputs = inputs 
         multiplySum = np.dot(inputs, self.weights) + self.bias
-        multiplySum += self.bias
+        # multiplySum += self.bias
         self.multiplySum = multiplySum
         self.output = self.activation(multiplySum)
         return self.output

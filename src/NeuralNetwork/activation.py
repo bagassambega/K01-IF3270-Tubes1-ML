@@ -27,7 +27,6 @@ def hyperbolic_tangent(x, derivative=False):
         return 1 - np.tanh(x) ** 2
     return np.tanh(x)
 
-
 def get_activation_function(function_name):
     if function_name == "linear":
         return linear
@@ -39,3 +38,7 @@ def get_activation_function(function_name):
         return hyperbolic_tangent
     else:
         raise Exception("Activation function not found.")
+    
+def get_activation_derivative(function_name):
+    activation_func = get_activation_function(function_name)
+    return lambda x: activation_func(x, derivative=True)
