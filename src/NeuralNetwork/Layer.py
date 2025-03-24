@@ -101,7 +101,7 @@ class Dense(Layer):
         self.inputShape = inputShape
         self.inputWeight = inputWeight
         self.weightInit = weightInit
-        self.weightInitParams = weightInitParams if weightInitParams is not None else None
+        self.weightInitParams = weightInitParams if weightInitParams is not None else {}
         # print(weightInit)
         # print("weight init: ", self.weightInitParams)
         self.create()
@@ -117,21 +117,23 @@ class Dense(Layer):
         ])
     
     def create(self):
-        if self.weightInitParams is not None: 
-            # print("LHO KOK KESINI")
-            weightsArr = self.random_weight(shape=(self.inputShape[0], self.neurons),
-                                            initMethod=self.weightInit,
-                                            **self.weightInitParams)
+        if self.inputWeight is None:
+            if self.inputShape is None:
+                raise ValueError("inputShape must be provided when inputWeight is not given")
+            # Generate weights using inputShape and initialization parameters
+            weightsArr = self.random_weight(
+                shape=(self.inputShape[0], self.neurons),
+                initMethod=self.weightInit,
+                **self.weightInitParams
+            )
         else:
-            # print("MASUK SINI")
+            # Use provided inputWeight
             weightsArr = self.inputWeight
 
-        # The first row is the bias and the remaining rows are the weights.
+        # Split into bias and weights
         self.bias = weightsArr[0]
         self.weights = weightsArr[1:]
-        print("WEIGHT")
-        print(self.weights)
-        super().create(weightsArr)
+        super().create(weightsArr)  # Store the weights in the parent class
 
 
     
