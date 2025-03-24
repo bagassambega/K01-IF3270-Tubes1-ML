@@ -130,8 +130,7 @@ class Backpropagation:
 
     def predict(self, x_data):
         # print(x_data)
-        return self.forward(x_data)
-        # if x_data.ndim == 1:
-        #     return self.forward(x_data)
-        # else:
-        #     return np.array([self.forward(sample) for sample in x_data])
+        if x_data.ndim == 1:
+            return self.forward(x_data)
+        else:
+            return np.array([self.forward(sample) for sample in x_data])
