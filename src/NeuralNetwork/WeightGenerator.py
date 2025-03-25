@@ -1,54 +1,137 @@
 import random
 import math
+from typing import Optional
+from NeuralNetwork.Autograd import Scalar
 
-#rowDim = jumlah input node (di layer n-1, ga termasuk bias)
-#colDim = jumlah output node (di layer n)
-def zeroInitialization(rowDim, colDim):
-    weightMatrix = [[0 for _ in range(colDim)] for _ in range(rowDim)]
-    biasMatrix = [[0 for _ in range(1)] for _ in range(rowDim)]
 
-    return weightMatrix, biasMatrix
+def zero_initialization(row_dim: int, col_dim: int):
+    """
+    Isi semua weight dengan 0
 
-def random_uniform_distribution(lower_bound, upper_bound, rowDim, colDim, seed=None):
-    weightMatrix = zeroInitialization(rowDim, colDim)
+    Args:
+        row_dim (int): jumlah input node (di layer n-1, ga termasuk bias)
+        col_dim (int): jumlah output node (di layer n)
+
+    Returns:
+        tuple of matrix weight and bias
+    """
+    weight_matrix = [[Scalar(0) for _ in range(col_dim)] for _ in range(row_dim)]
+    bias_matrix = [[Scalar(0) for _ in range(1)] for _ in range(row_dim)]
+
+    return weight_matrix, bias_matrix
+
+
+def random_uniform_distribution(
+    lower_bound: int | float,
+    upper_bound: int | float,
+    row_dim: int,
+    col_dim: int,
+    seed: Optional[int | float] = None,
+):
+    """
+    Generate weight dan bias menggunakan random uniform distribution
+
+    Args:
+        lower_bound (int | float): batas bawah
+        upper_bound (int | float): batas atas
+        row_dim (int): dimensi baris
+        col_dim (int): dimensi kolom
+        seed (Optional[int  |  float], optional): Seed. Defaults to None.
+
+    Returns:
+        tuple of matrix weight and bias
+    """
+    weight_matrix = zero_initialization(row_dim, col_dim)
 
     if seed is not None:
         random.seed(seed)
-    
-    for i in range(rowDim):
-        for j in range(colDim):
-            weightMatrix[i][j] = round(random.uniform(lower_bound, upper_bound), 4)
-    
-    #generate bias
+
+    for i in range(row_dim):
+        for j in range(col_dim):
+            weight_matrix[i][j] = Scalar(
+                round(random.uniform(lower_bound, upper_bound), 4)
+            )
+
+    # generate bias
     bias = round(random.uniform(lower_bound, upper_bound), 4)
-    biasMatrix = [[bias for _ in range(1)] for _ in range(rowDim)]
-            
-    return weightMatrix, biasMatrix
+    bias_matrix = [[Scalar(bias) for _ in range(1)] for _ in range(row_dim)]
 
-def normal_distribution(mean, variance, rowDim, colDim, seed=None):
-    weightMatrix = zeroInitialization(rowDim, colDim)
+    return weight_matrix, bias_matrix
+
+
+def normal_distribution(
+    mean: int | float,
+    variance: int | float,
+    row_dim: int,
+    col_dim: int,
+    seed: Optional[int | float] = None,
+):
+    """
+    Generate weight dan bias menggunakan distribusi normal
+
+    Args:
+        mean (int | float): rata-rata
+        variance (int | float): varians
+        row_dim (int): dimensi baris
+        col_dim (int): dimensi kolom
+        seed (Optional[int  |  float], optional): seed. Defaults to None.
+
+    Returns:
+        tuple of matrix weight and bias
+    """
+    weight_matrix = zero_initialization(row_dim, col_dim)
 
     if seed is not None:
         random.seed(seed)
-    
-    for i in range(rowDim):
-        for j in range(colDim):
-            weightMatrix[i][j] = round(random.normalvariate(mean, math.sqrt(variance)), 4)
 
-    #generate bias
+    for i in range(row_dim):
+        for j in range(col_dim):
+            weight_matrix[i][j] = Scalar(
+                round(random.normalvariate(mean, math.sqrt(variance)), 4)
+            )
+
+    # generate bias
     bias = round(random.normalvariate(mean, math.sqrt(variance)), 4)
-    biasMatrix = [[bias for _ in range(1)] for _ in range(rowDim)]
+    bias_matrix = [[Scalar(bias) for _ in range(1)] for _ in range(row_dim)]
 
-    return weightMatrix, biasMatrix
+    return weight_matrix, bias_matrix
 
-# referensi bonus: https://machinelearningmastery.com/weight-initialization-for-deep-learning-neural-networks/
-def xavier_initialization(rowDim, colDim, seed=None):
-    lower_bound = -1 * (math.sqrt(6) / math.sqrt(rowDim + colDim))
-    upper_bound = math.sqrt(6) / math.sqrt(rowDim + colDim)
 
-    weightMatrix, biasMatrix = random_uniform_distribution(lower_bound, upper_bound, rowDim, colDim, seed)
-    return weightMatrix, biasMatrix
+def xavier_initialization(row_dim: int, col_dim: int, seed=None):
+    """
+    Generate weight dan bias memakai Xavier initialization
 
-def he_initialization(rowDim, colDim, seed=None):
-    weightMatrix, biasMatrix = normal_distribution(0, 2/rowDim, rowDim, colDim, seed)
-    return weightMatrix, biasMatrix
+    Args:
+        row_dim (int): dimensi baris
+        col_dim (int): dimensi kolom
+        seed (_type_, optional): seed. Defaults to None.
+
+    Returns:
+        tuple of matrix weight and bias
+    """
+    # referensi bonus: https://machinelearningmastery.com/weight-initialization-for-deep-learning-neural-networks/
+    lower_bound = -1 * (math.sqrt(6) / math.sqrt(row_dim + col_dim))
+    upper_bound = math.sqrt(6) / math.sqrt(row_dim + col_dim)
+
+    weight_matrix, bias_matrix = random_uniform_distribution(
+        lower_bound, upper_bound, row_dim, col_dim, seed
+    )
+    return weight_matrix, bias_matrix
+
+
+def he_initialization(row_dim: int, col_dim: int, seed=None):
+    """
+    Generate weight dan bias memakai He initialization
+
+    Args:
+        row_dim (int): dimensi baris
+        col_dim (int): dimensi kolom
+        seed (_type_, optional): seed. Defaults to None.
+
+    Returns:
+        tuple of matrix weight and bias
+    """
+    weight_matrix, bias_matrix = normal_distribution(
+        0, 2 / row_dim, row_dim, col_dim, seed
+    )
+    return weight_matrix, bias_matrix

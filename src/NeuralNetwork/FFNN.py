@@ -2,7 +2,7 @@ from typing import List, Callable
 import numpy as np
 from NeuralNetwork.PerceptronException import PerceptronException
 from NeuralNetwork.WeightGenerator import (
-    zeroInitialization,
+    zero_initialization,
     random_uniform_distribution,
     normal_distribution,
     xavier_initialization,
@@ -78,7 +78,7 @@ class FFNN:
 
         if method == "zero":  # Zero initialization
             for i, _ in enumerate(self.layers):
-                self.weights[i], self.bias[i] = zeroInitialization(
+                self.weights[i], self.bias[i] = zero_initialization(
                     rowDim=self.x.shape[1], colDim=self.layers[i]
                 )
 
