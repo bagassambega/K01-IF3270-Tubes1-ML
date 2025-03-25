@@ -1,4 +1,4 @@
-
+import math
 
 class Scalar:
     """
@@ -114,15 +114,62 @@ class Scalar:
         """ Representasi string dari objek Scalar. """
         return f"Scalar(value={self.value}, grad={self.grad})"
 
-    def relu(self):
-        """ Fungsi aktivasi ReLU (Rectified Linear Unit). """
-        result = Scalar(self.value if self.value > 0 else 0, (self,), 'ReLU')
+    def relu(self) -> float | int:
+        """ Fungsi aktivasi ReLU (Rectified Linear Unit). Dikalikan dengan nilai out.grad karena chain rule (dz/dx = dz/dy * dy/dx)
+        f(x) = max(0, x). Turunan: if x > 0 return 1, else return 0
+        """
+        result = Scalar(0 if self.value <= 0 else self.value, (self,), 'ReLU')
 
         def _backward():
-            self.grad += (result.value > 0) * result.grad
+            if result.value > 0:
+                self.grad += 1 * result.grad
         result.set_backward(_backward)
 
         return result
+
+    def sigmoid(self) -> float | int:
+        """
+        Fungsi aktivasi sigmoid: f(x) = 1/(1 + e^(-x))
+        Turunan: o * (1 - o)
+        """
+        out = Scalar(1 / (1 + math.exp(-self.value)), (self,), 'sigmoid')
+
+        def _backward():
+            self.grad += (out.value * (1 - out.value)) * out.grad
+        out.set_backward(_backward)
+
+        return out
+
+    def linear(self) -> float | int:
+        """
+        Fungsi aktivasi linear
+
+        Returns:
+            float/int: Scalar value hasil linea
+        """
+        out = Scalar(self.value, (self,), 'linear')
+
+        def _backward():
+            self.grad += 1 * out.grad
+        out.set_backward(_backward)
+
+        return out
+
+    def tanh(self) -> int | float:
+        """
+        Fungsi aktivasi tanh: f(x) = tanh(x)
+        Turunan: 1 - tanh(x) ** 2
+
+        Returns:
+            int | float: _description_
+        """
+        out = Scalar(math.tanh(self.value), (self,), 'tanh')
+
+        def _backward():
+            self.grad += (1 - out.value ** 2) * out.grad
+        out.set_backward(_backward)
+
+        return out
 
     def backward(self):
         """
