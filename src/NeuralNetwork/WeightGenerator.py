@@ -41,7 +41,7 @@ def random_uniform_distribution(
     Returns:
         tuple of matrix weight and bias
     """
-    weight_matrix = zero_initialization(row_dim, col_dim)
+    weight_matrix, _ = zero_initialization(row_dim, col_dim)
 
     if seed is not None:
         random.seed(seed)
@@ -79,7 +79,7 @@ def normal_distribution(
     Returns:
         tuple of matrix weight and bias
     """
-    weight_matrix = zero_initialization(row_dim, col_dim)
+    weight_matrix, _ = zero_initialization(row_dim, col_dim)
 
     if seed is not None:
         random.seed(seed)
