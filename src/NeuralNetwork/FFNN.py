@@ -1,6 +1,5 @@
-from typing import List, Callable
+from typing import List, Optional
 import numpy as np
-from NeuralNetwork.PerceptronException import PerceptronException
 from NeuralNetwork.WeightGenerator import (
     zero_initialization,
     random_uniform_distribution,
@@ -21,52 +20,81 @@ class FFNN:
         y,
         layers: List[int],
         activations: List[str] | str = "relu",
-        weight_method: str = "random",
+        weight_method: str = "uniform",
         loss_function: str = "mse",
         batch_size: int = 1,
         epochs: int = 5,
-        learning_rate: float = 0.01
+        learning_rate: float = 0.01,
+        mean: Optional[int | float] = None,
+        variance: Optional[int | float] = None,
+        lower_bound: Optional[int | float] = None,
+        upper_bound: Optional[int | float] = None,
+        seed: Optional[int | float] = None,
     ):
         """
-        Create instance of Feed Forward Neural Network
+        Create instance of Feed Forward Neural Network. Diasumsikan bahwa input layer dan output
+        layer sebenarnya adalah hidden layer pertama dan terakhir (yang bertugas melakukan
+        transformasi dari dataset ke NN dan dari NN ke kelas target)
 
         Args:
             x (np.ndarray/np.array): dataset
             y (np.array/np.ndarray): target
-            layers (List[int]): list of number of layers (hidden layers and output layer)
+            layers (List[int]): number of neurons in each layers (include input & output layer)
             activations (List[str]): activation function for each hidden layers and output layer
-            loss_function (Callable, optional): Loss function. Defaults to "mse".
+            loss_function (str, optional): Loss function. Defaults to "mse".
             batch_size (int, optional): batch size. Defaults to 1.
-            epochs (int, optional): number of epochs. Defaults to 10.
-
+            epochs (int, optional): number of epochs. Defaults to 5.
+            learning_rate (float): learning rate
+            mean, variance (float, optional): used in normal weight distribution
+            lower_bound, upper_bound (float, optional): used in uniform weight distribution
+            seed (float, optional): seed for normal and uniform distribution
         Raises:
             PerceptronException: Check if length for array activations and layers are the same
         """
-        # Input of layer 0 (input layer)
+        # Initialize the data
+        assert x.shape[0] == y.shape[0], "Number of x row should be same with number of row in y"
         self.x = np.array([[Scalar(v) for v in row] for  row in x])
         self.y = np.array([Scalar(v) for v in y])
-        self.layers = layers
+
+        # Check on layers
+        for i, _ in enumerate(layers):
+            assert layers[i] > 0, f"Number of neurons {i} must be bigger than 0 ({layers[i]})"
+        self.layers = layers # All layers: input layer, hidden layer, output layer
 
         if isinstance(activations, list):
-            if len(activations) != len(layers):
-                raise PerceptronException(
-                    "Number of activations must be the same with number of \
-                        hidden layers + 1 output layer"
-                )
+            # Misal ada 3 layer (termasuk input & output)
+            # Activation akan ada di hidden layer 1 dan output layer saja
+            assert len(activations) == len(layers), "Number of activations must be the same \
+                with number of layers"
             self.activations = activations
         else:
             self.activations = [activations] * len(layers)
 
         # Initialize weights
-        self.weights = [[] for _ in range(len(self.layers))]
+        if weight_method == "normal":
+            assert mean is not None and variance is not None, "Jika weight menggunakan metode \
+                normal, mean dan variance harus dimasukkan. Seed dianjurkan dimasukkan"
+        elif weight_method == "uniform":
+            assert lower_bound is not None and upper_bound is not None, "Jika weight menggunakan \
+                metode uniform, lower dan upper bound harus dimasukkan. Seed dianjurkan"
+            assert upper_bound >= lower_bound, "Upper bound must be higher than lower bound"
+
+        self.mean = mean
+        self.variance = variance
+        self.seed = seed
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
+
+        self.weights: list[list[Scalar]] = [[] for _ in range(len(self.layers))]
+        self.bias: list[list[Scalar]] = [[] for _ in range(len(self.layers))]
         self.initialize_weights(weight_method)
-        self.bias = [[] for _ in range(len(self.layers))]
 
         # Parameters
         self.loss_function = loss_function
         self.epochs = epochs
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+
 
     def initialize_weights(self, method: str = "random"):
         """
@@ -75,130 +103,60 @@ class FFNN:
         Args:
             method (str, optional): weights initialization. Defaults to "random".
         """
-
         if method == "zero":  # Zero initialization
             for i, _ in enumerate(self.layers):
                 self.weights[i], self.bias[i] = zero_initialization(
-                    rowDim=self.x.shape[1], colDim=self.layers[i]
+                    row_dim=self.x.shape[1], col_dim=self.layers[i]
                 )
 
         elif method == "normal":  # Normal distribution
-            while True:
-                mean = input("Mean: ")
-                try:
-                    mean = float(mean)
-                    break
-                except ValueError:
-                    print("Mean must be a valid number")
-
-            while True:
-                variance = input("Variance: ")
-                try:
-                    variance = float(variance)
-                    break
-                except ValueError:
-                    print("Variance must be a valid number")
-
-            seed = input("Seed: ")
-            if not seed.isdigit():
-                seed = None
-
             for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = normal_distribution(
-                        mean=mean,
-                        variance=variance,
-                        rowDim=self.x.shape[1],
-                        colDim=self.layers[i],
-                        seed=seed,
-                    )
-                else:
-                    self.weights[i], self.bias[i] = normal_distribution(
-                        mean=mean,
-                        variance=variance,
-                        rowDim=self.layers[i - 1],
-                        colDim=self.layers[i],
-                        seed=seed,
-                    )
+                self.weights[i], self.bias[i] = normal_distribution(
+                    mean=self.mean,
+                    variance=self.variance,
+                    row_dim=self.x.shape[1],
+                    col_dim=self.layers[i],
+                    seed=self.seed,
+                )
 
         elif method == "xavier":  # Xavier initialization
             for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = xavier_initialization(
-                        rowDim=self.x.shape[1], colDim=self.layers[i], seed=seed
-                    )
-                else:
-                    self.weights[i], self.bias[i] = xavier_initialization(
-                        rowDim=self.layers[i - 1], colDim=self.layers[i], seed=seed
-                    )
+                self.weights[i], self.bias[i] = xavier_initialization(
+                    row_dim=self.x.shape[1], col_dim=self.layers[i], seed=self.seed
+                )
 
         elif method == "he":  # He initialization
             for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = he_initialization(
-                        rowDim=self.x.shape[1], colDim=self.layers[i], seed=seed
-                    )
-                else:
-                    self.weights[i], self.bias[i] = he_initialization(
-                        rowDim=self.layers[i - 1], colDim=self.layers[i], seed=seed
-                    )
+                self.weights[i], self.bias[i] = he_initialization(
+                    row_dim=self.x.shape[1], col_dim=self.layers[i], seed=self.seed
+                )
 
         else:  # Uniform distribution (default)
-            while True:
-                lower_bound = input("Lower bound: ")
-                try:
-                    lower_bound = float(lower_bound)
-                    break
-                except ValueError:
-                    print("Lower bound must be a valid number")
-
-            while True:
-                upper_bound = input("Upper bound: ")
-                try:
-                    variance = float(variance)
-                    if upper_bound > lower_bound:
-                        break
-                    else:
-                        print("Upper bound must be greater than lower bound")
-                except ValueError:
-                    print("Variance must be a valid number")
-
-            seed = input("Seed: ")
-            if not seed.isdigit():
-                seed = None
-
             for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = random_uniform_distribution(
-                        lower_bound=lower_bound,
-                        upper_bound=upper_bound,
-                        rowDim=self.x.shape[1],
-                        colDim=self.layers[i],
-                        seed=seed,
-                    )
-                else:
-                    self.weights[i], self.bias[i] = random_uniform_distribution(
-                        lower_bound=lower_bound,
-                        upper_bound=upper_bound,
-                        rowDim=self.layers[i - 1],
-                        colDim=self.layers[i],
-                        seed=seed,
-                    )
+                self.weights[i], self.bias[i] = random_uniform_distribution(
+                    lower_bound=self.lower_bound,
+                    upper_bound=self.upper_bound,
+                    row_dim=self.x.shape[1],
+                    col_dim=self.layers[i],
+                    seed=self.seed,
+                )
 
-    def net(self, inputs, weight):
+
+    def net(self, inputs, weight, i):
         """
         Calculate net of layer n
 
         Args:
             inputs (array of input): inputs
-            weight (matrix of weight, size of ((n-1)-th layer + 1) * n-th layer): matrix of weights. Bias included as w0
+            weight (matrix of weight, size of (n-1)-th layer * n-th layer): matrix of weights
 
         Returns:
             _type_: _description_
         """
-        return weight[0] + np.dot(inputs, weight[1:])
+        return self.bias[i] + np.dot(inputs[i], weight[i])
 
-    def activate(self, activation: Callable, val):
+
+    def activate(self, activation: str, val: Scalar) -> Scalar:
         """
         Activation function
 
@@ -209,7 +167,15 @@ class FFNN:
         Returns:
             _type_: _description_
         """
-        return activation(val)
+        if activation == "relu":
+            return val.relu()
+        elif activation == "sigmoid":
+            return val.sigmoid()
+        elif activation == "tanh":
+            return val.tanh()
+        else:
+            return val.linear()
+
 
     def forward(self):
         """
@@ -222,9 +188,10 @@ class FFNN:
         Do backward propagation
         """
 
-    def train(self):
-        # Forward propagation
-        # Layer input merupakan satu row, dan di NN layer input berupa x1 x2 dst merupakan fitur-fiturnya
+    def fit(self):
+        """
+        Train model
+        """
         for _ in range(self.epochs):
             for _ in range(0, self.x.shape[0], self.batch_size):
                 self.forward()
