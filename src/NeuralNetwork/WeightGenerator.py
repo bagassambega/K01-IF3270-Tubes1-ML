@@ -1,6 +1,7 @@
 import random
 import math
 from typing import Optional
+import numpy as np
 from NeuralNetwork.Autograd import Scalar
 
 
@@ -9,8 +10,8 @@ def zero_initialization(row_dim: int, col_dim: int):
     Isi semua weight dengan 0
 
     Args:
-        row_dim (int): jumlah input node (di layer n-1, ga termasuk bias)
-        col_dim (int): jumlah output node (di layer n)
+        row_dim (int): jumlah output node (di layer n, ga termasuk bias)
+        col_dim (int): jumlah input node (di layer n-1)
 
     Returns:
         tuple of matrix weight and bias
@@ -34,9 +35,9 @@ def random_uniform_distribution(
     Args:
         lower_bound (int | float): batas bawah
         upper_bound (int | float): batas atas
-        row_dim (int): dimensi baris
-        col_dim (int): dimensi kolom
-        seed (Optional[int  |  float], optional): Seed. Defaults to None.
+        row_dim (int): jumlah output node
+        col_dim (int): jumlah input node
+        seed (Optional[int | float], optional): Seed. Defaults to None.
 
     Returns:
         tuple of matrix weight and bias
@@ -72,9 +73,9 @@ def normal_distribution(
     Args:
         mean (int | float): rata-rata
         variance (int | float): varians
-        row_dim (int): dimensi baris
-        col_dim (int): dimensi kolom
-        seed (Optional[int  |  float], optional): seed. Defaults to None.
+        row_dim (int): jumlah output node
+        col_dim (int): jumlah input node
+        seed (Optional[int | float], optional): seed. Defaults to None.
 
     Returns:
         tuple of matrix weight and bias
@@ -102,9 +103,9 @@ def xavier_initialization(row_dim: int, col_dim: int, seed=None):
     Generate weight dan bias memakai Xavier initialization
 
     Args:
-        row_dim (int): dimensi baris
-        col_dim (int): dimensi kolom
-        seed (_type_, optional): seed. Defaults to None.
+        row_dim (int): jumlah output node
+        col_dim (int): jumlah input node
+        seed (float, optional): seed. Defaults to None.
 
     Returns:
         tuple of matrix weight and bias
@@ -124,9 +125,9 @@ def he_initialization(row_dim: int, col_dim: int, seed=None):
     Generate weight dan bias memakai He initialization
 
     Args:
-        row_dim (int): dimensi baris
-        col_dim (int): dimensi kolom
-        seed (_type_, optional): seed. Defaults to None.
+        row_dim (int): jumlah output node
+        col_dim (int): jumlah input node
+        seed (float, optional): seed. Defaults to None.
 
     Returns:
         tuple of matrix weight and bias
