@@ -6,6 +6,7 @@ from NeuralNetwork.WeightGenerator import (
     normal_distribution,
     xavier_initialization,
     he_initialization,
+    one_initialization
 )
 from NeuralNetwork.Autograd import Scalar
 from NeuralNetwork.LossFunction import binary_cross_entropy, mse, categorical_cross_entropy
@@ -32,7 +33,7 @@ class FFNN:
         lower_bound: Optional[int | float] = None,
         upper_bound: Optional[int | float] = None,
         seed: Optional[int | float] = None,
-        verbose: Optional[int] = 0
+        verbose: Optional[bool] = False
     ):
 
         """
@@ -45,8 +46,8 @@ class FFNN:
         Args:
             x (np.ndarray): dataset
             y (np.ndarray): target
-            layers (List[int]): number of neurons in each layers (hidden layer, soon added the output)
-            activations (List[str]): activation function for each hidden layers and output layer
+            layers (List[int]): number of neurons in each layers (hidden layer)
+            activations (List[str]) | str: activation function for each hidden layers + output layer
             loss_function (str, optional): Loss function. Defaults to "mse".
             batch_size (int, optional): batch size. Defaults to 1.
             epochs (int, optional): number of epochs. Defaults to 5.
@@ -54,14 +55,14 @@ class FFNN:
             mean, variance (float, optional): used in normal weight distribution
             lower_bound, upper_bound (float, optional): used in uniform weight distribution
             seed (float, optional): seed for normal and uniform distribution
-            verbose (int, optional): See logs of processes. Default 0 (off)
+            verbose (bool, optional): See logs of processes. Default False
         Raises:
             PerceptronException: Check if length for array activations and layers are the same
         """
 
         # Initialize the data (input layers)
-        assert x.shape[0] == y.shape[0], f"Number of x row ({x.shape[0]}) should be same with\
-            number of row in y ({y.shape[0]})"
+        assert x.shape[0] == y.shape[0], f"Number of x row ({x.shape}) should be same with\
+            number of row in y ({y.shape})"
         self.x = np.array([[Scalar(v) for v in row] for row in x])
         self.y = np.array([Scalar(v) for v in y])
 
@@ -85,7 +86,7 @@ class FFNN:
                 {activations} found"
 
         # Initialize weights
-        assert weight_method in ["normal", "uniform", "zero", "xavier", "he"], f"No weighting \
+        assert weight_method in ["normal", "uniform", "zero", "xavier", "he", "one"], f"No weighting \
             method found for {weight_method}"
         if weight_method == "normal":
             assert mean is not None and variance is not None, "Jika weight menggunakan metode \
@@ -118,10 +119,10 @@ class FFNN:
         self.learning_rate = learning_rate
 
         # Initiate network
-        self.layer_net = [[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))]
-        self.layer_output = [[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))]
+        self.layer_net = [[[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))] for _ in range(len(self.x))]
+        self.layer_output = [[[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))] for _ in range(len(self.x))]
 
-        # Loss value
+        # Loss value for each row of dataset
         self.loss_values: List[Scalar] = [Scalar(0) for _ in range(x.shape[0])]
 
         # Verbose
@@ -146,6 +147,17 @@ class FFNN:
                         row_dim=self.layers[i], col_dim=self.layers[i-1]
                     )
 
+        elif method == "one":  # Zero initialization
+            for i, _ in enumerate(self.layers):
+                if i == 0:
+                    self.weights[i], self.bias[i] = one_initialization(
+                        row_dim=self.layers[0], col_dim=self.x.shape[1]
+                    )
+                else:
+                    self.weights[i], self.bias[i] = one_initialization(
+                        row_dim=self.layers[i], col_dim=self.layers[i-1]
+                    )
+
         elif method == "normal":  # Normal distribution
             for i, _ in enumerate(self.layers):
                 if i == 0:
@@ -164,7 +176,6 @@ class FFNN:
                         col_dim=self.layers[i-1],
                         seed=self.seed,
                     )
-
 
         elif method == "xavier":  # Xavier initialization
             for i, _ in enumerate(self.layers):
@@ -208,7 +219,7 @@ class FFNN:
                     )
 
 
-    def net(self, weights: np.ndarray, inputs: np.ndarray, bias: np.ndarray, i: int) -> np.ndarray:
+    def net(self, weights: np.ndarray, inputs: np.ndarray, bias: np.ndarray) -> np.ndarray:
         """
         Calculate net of layer n
 
@@ -219,12 +230,8 @@ class FFNN:
         Returns:
             _type_: _description_
         """
-        print("Weight:", weights, "Weight:", np.array(weights).shape, "Input:", inputs, "Inputs:", np.array(inputs).shape)
-        if i == 0:
-            transposed = np.array(inputs, dtype=object).reshape(-1, 1) # Transpose input
-            return np.dot(weights, transposed) + bias
-        else:
-            return np.dot(weights, inputs) + bias
+        return np.dot(weights, np.array(inputs, dtype=object).reshape(-1, 1)) + bias
+
 
     def activate(self, activation: str, val) -> Scalar | np.ndarray | List:
         """
@@ -295,28 +302,35 @@ class FFNN:
         """
         for i, _ in enumerate(self.x):
             for j, _ in enumerate(self.layers):
-                # print("j:", j, "neurons:", neurons)
                 # From input layer to first hidden
                 if j == 0:
-                    self.layer_net[j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
+                    self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0])
                 # Hidden layers
                 else:
-                    self.layer_net[j] = self.net(self.weights[j], self.layer_net[j - 1], self.bias[j], j)
-                # print("Net:", self.layer_net[j], "shape:", np.array(self.layer_net[j]).shape)
-                self.layer_output[j] = self.activate(self.activations[j], self.layer_net[j])
-                # print("Output:", self.layer_output[j])
+                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j])
+                self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
 
             # Calculate the loss
-            # print(self.y[i], self.layer_output[i][-1])
+            print(i)
             self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1])
-            
+
             print("Loss:", self.loss_values[i])
 
 
-    def backward(self):
+    def backprop(self):
         """
         Do backward propagation
         """
+        for i in range(len(self.x)):
+            # Get the gradient
+            self.loss_values[i].backward()
+
+            # Update weights
+            for j, _ in enumerate(self.weights):
+                for k in range(len(self.weights[j])):
+                    for l in range(len(self.weights[j][k])):
+                        self.weights[j][k][l].value += self.weights[j][k][l].grad
+
 
     def fit(self):
         """
@@ -325,7 +339,7 @@ class FFNN:
         for _ in range(self.epochs):
             for _ in range(0, self.x.shape[0], self.batch_size):
                 self.forward()
-                self.backward()
+                self.backprop()
 
     def predict(self, x):
         """
