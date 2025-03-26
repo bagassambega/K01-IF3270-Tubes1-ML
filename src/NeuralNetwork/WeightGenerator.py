@@ -1,7 +1,6 @@
 import random
 import math
 from typing import Optional
-import numpy as np
 from NeuralNetwork.Autograd import Scalar
 
 
@@ -18,6 +17,22 @@ def zero_initialization(row_dim: int, col_dim: int):
     """
     weight_matrix = [[Scalar(0) for _ in range(col_dim)] for _ in range(row_dim)]
     bias_matrix = [[Scalar(0) for _ in range(1)] for _ in range(row_dim)]
+
+    return weight_matrix, bias_matrix
+
+def one_initialization(row_dim: int, col_dim: int):
+    """
+    Isi semua weight dengan 0
+
+    Args:
+        row_dim (int): jumlah output node (di layer n, ga termasuk bias)
+        col_dim (int): jumlah input node (di layer n-1)
+
+    Returns:
+        tuple of matrix weight and bias
+    """
+    weight_matrix = [[Scalar(1) for _ in range(col_dim)] for _ in range(row_dim)]
+    bias_matrix = [[Scalar(1) for _ in range(1)] for _ in range(row_dim)]
 
     return weight_matrix, bias_matrix
 
