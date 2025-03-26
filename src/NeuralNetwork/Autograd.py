@@ -47,6 +47,12 @@ class Scalar:
         """
         self._backward = _backward
 
+    def do_backward(self):
+        """
+        Do the backward function
+        """
+        self._backward()
+
     def get_parents(self):
         """
         Return parents of the Scalar value
@@ -250,4 +256,4 @@ class Scalar:
         self.grad = 1
 
         for node in reversed(topo_order):
-            node.get_backward()
+            node.do_backward()
