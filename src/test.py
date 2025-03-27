@@ -41,13 +41,18 @@ if X is not None:
     y = np.array(y)
 
 
-y = np.array([[float(y[i])] for i in range(len(y))])
+y = np.array([float(y[i]) for i in range(len(y))])
 print(X.shape)
 
 temp_x = X[0:30]
 temp_y = y[0:30]
 
-ffnn = FFNN(x=temp_x, y=temp_y.squeeze(), layers=[2, 3], weight_method="zero", activations="sigmoid")
+print(temp_x.shape)
+print(temp_y.shape)
+
+# print(X[0])
+
+ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], weight_method="zero", activations="sigmoid", verbose=True)
 
 ffnn.forward()
 ffnn.backprop()
