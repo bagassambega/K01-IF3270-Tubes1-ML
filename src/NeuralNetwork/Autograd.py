@@ -16,11 +16,14 @@ class Scalar:
         - parents (tuple): Node sebelumnya dalam computational graph.
         - operation (str): Operasi yang menghasilkan nilai ini
         """
-        self.value = value
-        self.grad = 0  # Gradien default adalah nol
-        self._backward: callable = lambda: None  # Fungsi untuk backpropagation
-        self._parents = set(parents)  # Menyimpan node asal
-        self._operation = operation  # Menyimpan operasi yang dilakukan parents
+        if isinstance(value, int) or isinstance(value, float):
+            self.value = value
+            self.grad = 0  # Gradien default adalah nol
+            self._backward: callable = lambda: None  # Fungsi untuk backpropagation
+            self._parents = set(parents)  # Menyimpan node asal
+            self._operation = operation  # Menyimpan operasi yang dilakukan parents
+        else:
+            raise TypeError("Value should be integer or float")
 
     #! Basic getter/setter
     def get_value(self) -> int | float:

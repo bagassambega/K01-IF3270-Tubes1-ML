@@ -86,8 +86,8 @@ class FFNN:
                 {activations} found"
 
         # Initialize weights
-        assert weight_method in ["normal", "uniform", "zero", "xavier", "he", "one"], f"No weighting \
-            method found for {weight_method}"
+        assert weight_method in ["normal", "uniform", "zero", "xavier", "he", "one"], f"No \
+            weighting method found for {weight_method}"
         if weight_method == "normal":
             assert mean is not None and variance is not None, "Jika weight menggunakan metode \
                 normal, mean dan variance harus dimasukkan. Seed dianjurkan dimasukkan"
@@ -219,7 +219,7 @@ class FFNN:
                     )
 
 
-    def net(self, weights: np.ndarray, inputs: np.ndarray, bias: np.ndarray) -> np.ndarray:
+    def net(self, weights: np.ndarray, inputs: np.ndarray, bias: np.ndarray, i) -> np.ndarray:
         """
         Calculate net of layer n
 
@@ -230,7 +230,11 @@ class FFNN:
         Returns:
             _type_: _description_
         """
-        return np.dot(weights, np.array(inputs, dtype=object).reshape(-1, 1)) + bias
+        if i == 0:
+            return np.dot(weights, np.array(inputs, dtype=object).reshape(-1, 1)) + bias
+        else:
+            return np.dot(weights, inputs) + bias
+
 
 
     def activate(self, activation: str, val) -> Scalar | np.ndarray | List:
@@ -304,15 +308,15 @@ class FFNN:
             for j, _ in enumerate(self.layers):
                 # From input layer to first hidden
                 if j == 0:
-                    self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0])
+                    self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
                 # Hidden layers
                 else:
-                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j])
+                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
                 self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
+                print(f"{i} {j}:", self.layer_output[i][j], ", shape:", self.layer_output[i][j].shape)
 
             # Calculate the loss
-            print(i)
-            self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1])
+            self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
 
             print("Loss:", self.loss_values[i])
 
