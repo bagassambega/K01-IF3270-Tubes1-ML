@@ -73,7 +73,7 @@ class FFNN:
         for i, _ in enumerate(layers):
             assert layers[i] > 0, f"Number of neurons {i} must be bigger than 0 ({layers[i]})"
         layers.append(1) # From last hidden layer to output layer. Output layer must be 1
-        self.layers = layers # All layers: input layer, hidden layer, output layer
+        self.layers = layers # All layers: hidden layer + output layer
 
         if isinstance(activations, List):
             # Misal ada 3 layer (termasuk input & output)
@@ -99,17 +99,17 @@ class FFNN:
                 metode uniform, lower dan upper bound harus dimasukkan. Seed dianjurkan"
             assert upper_bound >= lower_bound, "Upper bound must be higher than lower bound"
 
-        # Initialize weights
-        self.weights = [[[Scalar(0)] for _ in range(layers[i])] for i in range(len(layers))]
-        self.bias = [[Scalar(0)] for _ in range(len(self.layers))]
-        self.initialize_weights(weight_method)
-
         # Parameter for weights
         self.mean = mean
         self.variance = variance
         self.seed = seed
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+
+        # Initialize weights
+        self.weights = [[[Scalar(0)] for _ in range(self.layers[i])] for i in range(len(self.layers))]
+        self.bias = [[Scalar(0)] for _ in range(len(self.layers))]
+        self.initialize_weights(weight_method)
 
         # Parameters
         assert loss_function in ["mse", "binary_cross_entropy", "categorical_cross_entropy"], f"\
@@ -313,19 +313,15 @@ class FFNN:
             for j, _ in enumerate(self.layers):
                 # From input layer to first hidden
                 if j == 0:
-                    # print(self.x[i])
                     self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
                 # Hidden layers
                 else:
-                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
-                # print(i, "net:", self.layer_net[i][j].shape)
+                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j - 1], self.bias[j], j)
+                
                 self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
-                # print("output:", self.layer_output[i][j].shape)
-                # print(f"{i} {j}:", self.layer_output[i][j], ", shape:", self.layer_output[i][j].shape)
 
             # Calculate the loss
             self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
-            # print("loss:", self.loss_values[i])
 
             if self.verbose:
                 print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
@@ -435,8 +431,7 @@ class FFNN:
             x (np.array, list): misalkan x adalah array berukuran n fitur
         """
         x = np.array(x).reshape(-1, 1)
-        # if len(x) != len(self.x[0]):
-        #     return f"Size of inputted data {len(x)} is not the same as training data {len(self.x[0])}"
+        
         layer_result = [[Scalar(0)] for _ in range(len(self.layers))]
         for j, _ in enumerate(self.layers):
             # From input layer to first hidden
@@ -445,10 +440,16 @@ class FFNN:
             # Hidden layers
             else:
                 layer_result[j] = self.net(self.weights[j], layer_result[j - 1], self.bias[j], j)
-            self.layer_output[j] = self.activate(self.activations[j], layer_result[j])
+            
+            if self.activations[j] == "sigmoid":
+                sigmoid_output = self.activate(self.activations[j], layer_result[j])
+                self.layer_output[j] = np.floor(np.array([scalar.value for scalar in sigmoid_output.flatten()]) * 10).astype(int)
+                print(self.layer_output[j])
+            else:
+                self.layer_output[j] = self.activate(self.activations[j], layer_result[j])
 
         return layer_result[-1][0][0].value
-    
+
     def predict(self, x):
         """
         Predict datas
