@@ -110,7 +110,7 @@ class FFNN:
 
         # Initialize weights
         self.weights = [[[Scalar(0)] for _ in range(layers[i])] for i in range(len(layers))]
-        self.bias = [[Scalar(0)] for _ in range(len(self.layers))]
+        self.bias = [[[Scalar(0)] for _ in range(1)] for _ in range(len(self.layers))]
         self.initialize_weights(weight_method)
 
         # Parameters
@@ -307,62 +307,62 @@ class FFNN:
                 return mse(y_pred=y_pred, y_true=y_true)
 
 
-    def forward(self):
-        """
-        Do forward propagation
-        """
-        for i, _ in enumerate(self.x):
-            for j, _ in enumerate(self.layers):
-                # From input layer to first hidden
-                if j == 0:
-                    self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
-                # Hidden layers
-                else:
-                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j - 1], self.bias[j], j)
-                
-                self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
+    # def forward(self):
+    #     """
+    #     Do forward propagation
+    #     """
+    #     for i, _ in enumerate(self.x):
+    #         for j, _ in enumerate(self.layers):
+    #             # From input layer to first hidden
+    #             if j == 0:
+    #                 self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
+    #             # Hidden layers
+    #             else:
+    #                 self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j - 1], self.bias[j], j)
 
-            # Calculate the loss
-            self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
+    #             self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
 
-            if self.verbose:
-                print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
+    #         # Calculate the loss
+    #         self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
+
+    #         if self.verbose:
+    #             print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
 
 
-    def backprop(self):
-        """
-        Do backward propagation
-        """
-        for i, _ in enumerate(self.x):
-            # Get the gradient
-            self.loss_values[i].backward()
+    # def backprop(self):
+    #     """
+    #     Do backward propagation
+    #     """
+    #     for i, _ in enumerate(self.x):
+    #         # Get the gradient
+    #         self.loss_values[i].backward()
 
-            # Update weights
-            for j, _ in enumerate(self.weights): # Through layer
-                for k in range(len(self.weights[j])): # Through baris
-                    for l in range(len(self.weights[j][k])): # Through kolom
-                        if j == 0:
-                            temp_x = self.x[i][k]
-                        else:
-                            temp_x = self.layer_output[i][j - 1][l][0]
-                        # print(i, j, k, l, self.weights[j][k][l])
-                        if not isinstance(temp_x, (float, int, np.number, Scalar)):
-                            raise TypeError(f"Wrong: {type(temp_x)}")
-                        if isinstance(temp_x.value, (Scalar)):
-                            raise TypeError(f"Wrong: {temp_x} {type(temp_x)}")
-                        temp = self.weights[j][k][l].grad * self.learning_rate * temp_x.value
-                        self.weights[j][k][l].value -= temp
+    #         # Update weights
+    #         for j, _ in enumerate(self.weights): # Through layer
+    #             for k in range(len(self.weights[j])): # Through baris
+    #                 for l in range(len(self.weights[j][k])): # Through kolom
+    #                     if j == 0:
+    #                         temp_x = self.x[i][k]
+    #                     else:
+    #                         temp_x = self.layer_output[i][j - 1][l][0]
+    #                     # print(i, j, k, l, self.weights[j][k][l])
+    #                     if not isinstance(temp_x, (float, int, np.number, Scalar)):
+    #                         raise TypeError(f"Wrong: {type(temp_x)}")
+    #                     if isinstance(temp_x.value, (Scalar)):
+    #                         raise TypeError(f"Wrong: {temp_x} {type(temp_x)}")
+    #                     temp = self.weights[j][k][l].grad * self.learning_rate * temp_x.value
+    #                     self.weights[j][k][l].value -= temp
 
-            # Update bias
-            for j, _ in enumerate(self.bias):
-                for k in range(len(self.bias[j])):
-                    if j == 0:
-                        temp_x = self.x[i][k]
-                    else:
-                        temp_x = self.layer_output[i][j - 1][0][0]
-                    self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate * temp_x.value
+    #         # Update bias
+    #         for j, _ in enumerate(self.bias):
+    #             for k in range(len(self.bias[j])):
+    #                 if j == 0:
+    #                     temp_x = self.x[i][k]
+    #                 else:
+    #                     temp_x = self.layer_output[i][j - 1][0][0]
+    #                 self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate * temp_x.value
 
-            self._zero_gradients()
+    #         self._zero_gradients()
 
     def _zero_gradients(self):
         """Reset all gradients to zero before processing a new batch"""
@@ -430,15 +430,15 @@ class FFNN:
                     self.loss_values[i].backward()
 
                 # Update weights and biases
-                for j, _ in enumerate(self.weights):
-                    for k in range(len(self.weights[j])):
-                        for l in range(len(self.weights[j][k])):
-                            self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate / len(batch_indices)
+                for j, _ in enumerate(self.weights): # Per layer
+                    for k in range(len(self.weights[j])): # Per baris
+                        for l in range(len(self.weights[j][k])): # Per kolom
+                            self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate
                             # print("Update:", self.weights[j][k][l])
 
                 for j, _ in enumerate(self.bias):
                     for k in range(len(self.bias[j])):
-                        self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate / len(batch_indices)
+                        self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate
 
                 epoch_loss += batch_loss
                 batch_count += 1
