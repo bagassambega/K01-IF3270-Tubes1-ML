@@ -46,22 +46,12 @@ y = np.array([float(y[i]) for i in range(len(y))])
 temp_x = X[0:40]
 temp_y = y[0:40]
 
-# print(temp_x.shape)
-# print(temp_y.shape)
-
-ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="mse", weight_method="one", activations="sigmoid", verbose=False, epochs=1)
-
-# for i in range(8):
-#     # print(i, ffnn.x)
-#     ffnn.forward()
-#     ffnn.backprop()
-
+ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="mse", weight_method="one", activations="sigmoid", verbose=False, epochs=3)
 
 ffnn.fit()
 for i, weights in enumerate(ffnn.weights):
     print(f"Layer {i}:", weights)
-test = X[0]
-test = np.array([[test[i]] for i in range(len(test))]).reshape(-1, 1)
-# print("test:", test.shape)
+test = X[:3]
+print("test:", test.shape)
 
-# print(ffnn.predict_single(test))
+print(ffnn.predict(test))

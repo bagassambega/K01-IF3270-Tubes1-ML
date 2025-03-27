@@ -434,6 +434,7 @@ class FFNN:
         Args:
             x (np.array, list): misalkan x adalah array berukuran n fitur
         """
+        x = np.array(x).reshape(-1, 1)
         # if len(x) != len(self.x[0]):
         #     return f"Size of inputted data {len(x)} is not the same as training data {len(self.x[0])}"
         layer_result = [[Scalar(0)] for _ in range(len(self.layers))]
@@ -446,4 +447,16 @@ class FFNN:
                 layer_result[j] = self.net(self.weights[j], layer_result[j - 1], self.bias[j], j)
             self.layer_output[j] = self.activate(self.activations[j], layer_result[j])
 
-        return layer_result[-1]
+        return layer_result[-1][0][0].value
+    
+    def predict(self, x):
+        """
+        Predict datas
+
+        Args:
+            x (np.array): _description_
+        """
+        res = []
+        for row in x:
+            res.append(self.predict_single(row))
+        return res
