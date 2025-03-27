@@ -265,3 +265,35 @@ class Scalar:
 
         for node in reversed(topo_order):
             node.do_backward()
+
+
+def softmax(scalars: list['Scalar']) -> list['Scalar']:
+    """
+    Menghitung fungsi aktivasi softmax untuk daftar objek Scalar.
+
+    Parameters:
+    - scalars (list of Scalar): Daftar nilai Scalar yang ingin dihitung softmax-nya.
+
+    Returns:
+    - list of Scalar: Daftar nilai Scalar yang telah diterapkan fungsi softmax.
+    """
+    exp = [Scalar(math.exp(s.value)) for s in scalars]
+    sum_exp = sum(exp)
+
+    softmax_values = [exp_v / sum_exp for exp_v in exp]
+
+    for i, s in enumerate(scalars):
+        def _backward(i=i, softmax_values=softmax_values, scalars=scalars):
+            """
+            Turunan softmax:
+            dσ_i/dx_j = σ_i (δ_ij - σ_j)
+            """
+            for j, sj in enumerate(scalars):
+                if i == j:
+                    sj.grad += softmax_values[i].value * (1 - softmax_values[i].value) * softmax_values[i].grad
+                else:
+                    sj.grad -= softmax_values[i].value * softmax_values[j].value * softmax_values[i].grad
+
+        softmax_values[i].set_backward(_backward)
+
+    return softmax_values
