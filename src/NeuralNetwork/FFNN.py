@@ -10,6 +10,7 @@ from NeuralNetwork.WeightGenerator import (
 )
 from NeuralNetwork.Autograd import Scalar
 from NeuralNetwork.LossFunction import binary_cross_entropy, mse, categorical_cross_entropy
+from tqdm import tqdm
 
 class FFNN:
     """
@@ -380,61 +381,69 @@ class FFNN:
 
     def fit(self):
         """
-        Train model
+        Train model with progress bar
         """
         num = len(self.x)
         indices = np.arange(num)
-        for _ in range(self.epochs):
+        total_loss = 0
+        
+        # Create progress bar for epochs
+        epoch_pbar = tqdm(range(self.epochs), desc="Epochs", disable=not self.verbose)
+        
+        for epoch in epoch_pbar:
             if self.randomize:
                 np.random.shuffle(indices)
-            total_loss = 0
+            
+            epoch_loss = 0
             batch_count = 0
-
-            for batch_start in range(0, num, self.batch_size):
+            
+            # Create progress bar for batches
+            batch_pbar = tqdm(range(0, num, self.batch_size), 
+                            desc=f"Epoch {epoch+1}/{self.epochs} Batches",
+                            leave=False,
+                            disable=not self.verbose)
+            
+            for batch_start in batch_pbar:
                 batch_end = min(batch_start + self.batch_size, num)
                 batch_indices = indices[batch_start:batch_end]
 
-                # Restart gradient di tiap weight
                 self._zero_gradients()
-
                 batch_loss = 0
+
                 for i in batch_indices:
-                    for j, _ in enumerate(self.layers):
-                        # From input layer to first hidden
+                    # Forward pass
+                    for j in range(len(self.layers)):
                         if j == 0:
                             self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
-                        # Hidden layers
                         else:
-                            self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
+                            self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j-1], self.bias[j], j)
                         self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
 
-                    # Calculate the loss
+                    # Calculate loss
                     self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
-                    total_loss += self.loss_values[i].value
                     batch_loss += self.loss_values[i].value
-
-                    # Backprop
                     self.loss_values[i].backward()
 
-                # Update weights
-                for j, _ in enumerate(self.weights): # Through layer
-                    for k in range(len(self.weights[j])): # Through baris
-                        for l in range(len(self.weights[j][k])): # Through kolom
-                            self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate
+                # Update weights and biases
+                for j, _ in enumerate(self.weights):
+                    for k in range(len(self.weights[j])):
+                        for l in range(len(self.weights[j][k])):
+                            self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate / len(batch_indices)
 
-                # Update bias
                 for j, _ in enumerate(self.bias):
                     for k in range(len(self.bias[j])):
-                        self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate
+                        self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate / len(batch_indices)
 
-                self._zero_gradients()
+                epoch_loss += batch_loss
+                batch_count += 1
+                batch_pbar.set_postfix({"Batch Loss": batch_loss/len(batch_indices)})
 
-            batch_count += 1
+            avg_epoch_loss = epoch_loss / num
+            epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
+            total_loss += epoch_loss
 
-            if self.verbose:
-                print(f"Loss-{batch_count}: {batch_loss / len(batch_indices)}")
-
-        print(f"Average loss: {total_loss / num}")
+        if self.verbose:
+            print(f"\nFinal Average Loss: {total_loss/(num*self.epochs):.4f}")
 
 
 
@@ -445,9 +454,12 @@ class FFNN:
         Args:
             x (np.array, list): misalkan x adalah array berukuran n fitur
         """
-        x = np.array(x).reshape(-1, 1)
-        # if len(x) != len(self.x[0]):
-        #     return f"Size of inputted data {len(x)} is not the same as training data {len(self.x[0])}"
+        x = np.array(x)
+        if x.ndim == 1:
+            x = x.reshape(-1, 1)
+        elif x.ndim == 2:
+            if x.shape[1] != 1:
+                x = x.reshape(-1, 1)
         layer_result = [[Scalar(0)] for _ in range(len(self.layers))]
         for j, _ in enumerate(self.layers):
             # From input layer to first hidden
@@ -467,6 +479,11 @@ class FFNN:
         Args:
             x (np.array): _description_
         """
+        if isinstance(x, list):
+            x = np.array(x)
+
+        if x.ndim == 1:
+            return self.predict_single(x)
         res = []
         for row in x:
             res.append(self.predict_single(row))
