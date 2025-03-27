@@ -318,35 +318,53 @@ class FFNN:
                 # Hidden layers
                 else:
                     self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
+                # print(i, "net:", self.layer_net[i][j].shape)
                 self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
+                # print("output:", self.layer_output[i][j].shape)
                 # print(f"{i} {j}:", self.layer_output[i][j], ", shape:", self.layer_output[i][j].shape)
 
             # Calculate the loss
             self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
+            # print("loss:", self.loss_values[i])
 
             if self.verbose:
-                print("Loss:", self.loss_values[i])
+                print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
 
 
     def backprop(self):
         """
         Do backward propagation
         """
-        for i in range(len(self.x)):
+        for i, _ in enumerate(self.x):
             # Get the gradient
             self.loss_values[i].backward()
 
             # Update weights
-            for j, _ in enumerate(self.weights):
-                for k in range(len(self.weights[j])):
-                    for l in range(len(self.weights[j][k])):
-                        self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate # TODO update memakai nilai input
+            for j, _ in enumerate(self.weights): # Through layer
+                for k in range(len(self.weights[j])): # Through baris
+                    for l in range(len(self.weights[j][k])): # Through kolom
+                        if j == 0:
+                            temp_x = self.x[i][k]
+                        else:
+                            temp_x = self.layer_output[i][j - 1][l][0]
+                        # print(i, j, k, l, self.weights[j][k][l])
+                        if not isinstance(temp_x, (float, int, np.number, Scalar)):
+                            raise TypeError(f"Wrong: {type(temp_x)}")
+                        if isinstance(temp_x.value, (Scalar)):
+                            raise TypeError(f"Wrong: {temp_x} {type(temp_x)}")
+                        temp = self.weights[j][k][l].grad * self.learning_rate * temp_x.value
+                        self.weights[j][k][l].value -= temp
 
             # Update bias
             for j, _ in enumerate(self.bias):
                 for k in range(len(self.bias[j])):
-                    # print(self.bias[j][k])
-                    self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate # TODO update memakai nilai input
+                    if j == 0:
+                        temp_x = self.x[i][k]
+                    else:
+                        temp_x = self.layer_output[i][j - 1][0][0]
+                    self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate * temp_x.value
+
+            self._zero_gradients()
 
     def _zero_gradients(self):
         """Reset all gradients to zero before processing a new batch"""
@@ -359,82 +377,73 @@ class FFNN:
             for b in layer:
                 b[0].grad = 0
 
-    def _update_weights(self, batch_size):
-        """Update weights using accumulated gradients, averaged over the batch"""
-        for layer_idx, _ in enumerate(self.weights):
-            for neuron_idx in range(len(self.weights[layer_idx])):
-                # Update weights
-                for w_idx in range(len(self.weights[layer_idx][neuron_idx])):
-                    self.weights[layer_idx][neuron_idx][w_idx].value -= (
-                        self.learning_rate *
-                        self.weights[layer_idx][neuron_idx][w_idx].grad / batch_size
-                    )
-                # Update bias
-                self.bias[layer_idx][neuron_idx][0].value -= (
-                    self.learning_rate *
-                    self.bias[layer_idx][neuron_idx][0].grad / batch_size
-                )
 
     def fit(self):
         """
         Train model
         """
-        num = len(self.x)
-        indices = np.arange(num)
+        for _ in range(self.epochs):
+            for i, _ in enumerate(self.x):
+                for j, _ in enumerate(self.layers):
+                    # From input layer to first hidden
+                    if j == 0:
+                        self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
+                    # Hidden layers
+                    else:
+                        self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
+                    self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
 
-        for epoch in range(self.epochs):
-            if self.randomize:
-                np.random.shuffle(indices)
+                # Calculate the loss
+                self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
 
-            total_loss = 0
-            batch_count = 0
+                if self.verbose:
+                    print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
 
-            for batch_start in range(0, num, self.batch_size):
-                batch_end = min(batch_start + self.batch_size, num)
-                batch_indices = indices[batch_start:batch_end]
+                # Backprop
+                self.loss_values[i].backward()
+
+                # Update weights
+                for j, _ in enumerate(self.weights): # Through layer
+                    for k in range(len(self.weights[j])): # Through baris
+                        for l in range(len(self.weights[j][k])): # Through kolom
+                            if j == 0:
+                                temp_x = self.x[i][k]
+                            else:
+                                temp_x = self.layer_output[i][j - 1][l][0]
+                            if not isinstance(temp_x, (float, int, np.number, Scalar)):
+                                raise TypeError(f"Wrong: {type(temp_x)}")
+                            temp = self.weights[j][k][l].grad * self.learning_rate * temp_x.value
+                            self.weights[j][k][l].value -= temp
+
+                # Update bias
+                for j, _ in enumerate(self.bias):
+                    for k in range(len(self.bias[j])):
+                        if j == 0:
+                            temp_x = self.x[i][k]
+                        else:
+                            temp_x = self.layer_output[i][j - 1][0][0]
+                        self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate * temp_x.value
 
                 self._zero_gradients()
 
-                batch_loss = 0
-                for i in batch_indices:
-                    # Forward pass for single sample
-                    for j, _ in enumerate(self.layers):
-                        if j == 0:
-                            self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
-                        else:
-                            self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
-                        self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
 
-                    # Calculate loss
-                    self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
-                    batch_loss += self.loss_values[i].value
-
-                # Backpropagate for the batch
-                for i in batch_indices:
-                    self.loss_values[i].backward()
-
-                # Update weights with average gradient for the batch
-                self._update_weights(len(batch_indices))
-
-                # Calculate average batch loss
-                avg_batch_loss = batch_loss / len(batch_indices)
-                total_loss += avg_batch_loss
-                batch_count += 1
-
-                if self.verbose:
-                    print(f"Epoch {epoch+1}, Batch {batch_count}, Loss: {avg_batch_loss}")
-
-            if self.verbose:
-                print(f"Epoch {epoch+1} completed, Average Loss: {total_loss / batch_count}")
-
-
-
-                
-
-    def predict(self, x):
+    def predict_single(self, x):
         """
-        Predict target of inputted data
+        Predict target of inputted single data
 
         Args:
-            x (_type_): _description_
+            x (np.array, list): misalkan x adalah array berukuran n fitur
         """
+        # if len(x) != len(self.x[0]):
+        #     return f"Size of inputted data {len(x)} is not the same as training data {len(self.x[0])}"
+        layer_result = [[Scalar(0)] for _ in range(len(self.layers))]
+        for j, _ in enumerate(self.layers):
+            # From input layer to first hidden
+            if j == 0:
+                layer_result[j] = np.dot(self.weights[0], x)
+            # Hidden layers
+            else:
+                layer_result[j] = self.net(self.weights[j], layer_result[j - 1], self.bias[j], j)
+            self.layer_output[j] = self.activate(self.activations[j], layer_result[j])
+
+        return layer_result[-1]

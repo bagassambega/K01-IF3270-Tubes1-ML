@@ -42,17 +42,26 @@ if X is not None:
 
 
 y = np.array([float(y[i]) for i in range(len(y))])
-print(X.shape)
 
-temp_x = X[0:30]
-temp_y = y[0:30]
+temp_x = X[0:40]
+temp_y = y[0:40]
 
-print(temp_x.shape)
-print(temp_y.shape)
+# print(temp_x.shape)
+# print(temp_y.shape)
 
-# print(X[0])
+ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="mse", weight_method="one", activations="sigmoid", verbose=False, epochs=1)
 
-ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], weight_method="zero", activations="sigmoid", verbose=True)
+# for i in range(8):
+#     # print(i, ffnn.x)
+#     ffnn.forward()
+#     ffnn.backprop()
 
-ffnn.forward()
-ffnn.backprop()
+
+ffnn.fit()
+for i, weights in enumerate(ffnn.weights):
+    print(f"Layer {i}:", weights)
+test = X[0]
+test = np.array([[test[i]] for i in range(len(test))]).reshape(-1, 1)
+# print("test:", test.shape)
+
+# print(ffnn.predict_single(test))
