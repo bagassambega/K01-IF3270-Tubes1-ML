@@ -236,11 +236,11 @@ class FFNN:
         Returns:
             _type_: _description_
         """
-        if i == 0:
-            # Perlu di-transpose karena nilai yang diambil dari dataset akan sebesar 1 x num_feature
-            return np.dot(weights, np.array(inputs, dtype=object).reshape(-1, 1)) + bias
-        else:
-            return np.dot(weights, inputs) + bias
+        # if i == 0:
+        #     # Perlu di-transpose karena nilai yang diambil dari dataset akan sebesar 1 x num_feature
+        #     return np.dot(weights, np.array(inputs, dtype=object).reshape(-1, 1)) + bias
+        # else:
+        return np.dot(weights, inputs) + bias
 
 
 
@@ -419,10 +419,13 @@ class FFNN:
                     # Forward pass
                     for j in range(len(self.layers)):
                         if j == 0:
-                            self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
+                            self.layer_net[i][j] = self.net(self.weights[0], np.array([self.x[i]]).reshape(-1,1), self.bias[0], j)
                         else:
                             self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j-1], self.bias[j], j)
                         self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
+                        print(f"Baris-{i} layer-{j} {self.activations[j]}")
+                        print(f"{self.layer_output[i][j]}")
+                        print("------")
 
                     # Calculate loss
                     self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
@@ -477,12 +480,16 @@ class FFNN:
             else:
                 layer_result[j] = self.net(self.weights[j], layer_result[j - 1], self.bias[j], j)
             
-            if self.activations[j] == "sigmoid":
-                sigmoid_output = self.activate(self.activations[j], layer_result[j])
-                self.layer_output[j] = np.floor(np.array([scalar.value for scalar in sigmoid_output.flatten()]) * 10).astype(int)
-                print(self.layer_output[j])
-            else:
-                self.layer_output[j] = self.activate(self.activations[j], layer_result[j])
+            # if self.activations[j] == "sigmoid":
+            #     sigmoid_output = self.activate(self.activations[j], layer_result[j])
+            #     layer_result[j] = np.floor(np.array([scalar.value for scalar in sigmoid_output.flatten()]) * 10).astype(int)
+            # else:
+            print(f"Layer-{j}, net: {layer_result[j]}")
+            print(f"Activation: {self.activations[j]}")
+            layer_result[j] = self.activate(self.activations[j], layer_result[j])
+            print(f"Layer-{j}, output: {layer_result[j]}")
+        print(f"Result: {layer_result[-1][0][0]}")
+
 
         return layer_result[-1][0][0].value
 
@@ -493,6 +500,11 @@ class FFNN:
         Args:
             x (np.array): _description_
         """
+        print("Mulai predict")
+        for i, weight in enumerate(self.weights):
+            print(f"Weight-{i}")
+            print(weight)
+        print("---------------")
         if isinstance(x, list):
             x = np.array(x)
 
