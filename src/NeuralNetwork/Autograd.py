@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 class Scalar:
     """
@@ -16,7 +17,7 @@ class Scalar:
         - parents (tuple): Node sebelumnya dalam computational graph.
         - operation (str): Operasi yang menghasilkan nilai ini
         """
-        if isinstance(value, int) or isinstance(value, float):
+        if isinstance(value, (int, float, np.integer, np.floating)):
             self.value = value
             self.grad = 0  # Gradien default adalah nol
             self._backward: callable = lambda: None  # Fungsi untuk backpropagation

@@ -63,6 +63,7 @@ class FFNN:
         # Initialize the data (input layers)
         assert x.shape[0] == y.shape[0], f"Number of x row ({x.shape}) should be same with\
             number of row in y ({y.shape})"
+
         self.x = np.array([[Scalar(v) for v in row] for row in x])
         self.y = np.array([Scalar(v) for v in y])
 

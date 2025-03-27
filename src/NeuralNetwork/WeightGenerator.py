@@ -22,7 +22,7 @@ def zero_initialization(row_dim: int, col_dim: int):
 
 def one_initialization(row_dim: int, col_dim: int):
     """
-    Isi semua weight dengan 0
+    Isi semua weight dengan 1
 
     Args:
         row_dim (int): jumlah output node (di layer n, ga termasuk bias)
@@ -112,7 +112,7 @@ def normal_distribution(
 
     return weight_matrix, bias_matrix
 
-
+# referensi bonus: https://machinelearningmastery.com/weight-initialization-for-deep-learning-neural-networks/
 def xavier_initialization(row_dim: int, col_dim: int, seed=None):
     """
     Generate weight dan bias memakai Xavier initialization
@@ -125,7 +125,6 @@ def xavier_initialization(row_dim: int, col_dim: int, seed=None):
     Returns:
         tuple of matrix weight and bias
     """
-    # referensi bonus: https://machinelearningmastery.com/weight-initialization-for-deep-learning-neural-networks/
     lower_bound = -1 * (math.sqrt(6) / math.sqrt(row_dim + col_dim))
     upper_bound = math.sqrt(6) / math.sqrt(row_dim + col_dim)
 
