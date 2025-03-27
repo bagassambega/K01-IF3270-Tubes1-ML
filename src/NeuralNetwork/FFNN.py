@@ -1,4 +1,5 @@
 from typing import List, Optional
+from tqdm import tqdm
 import numpy as np
 from NeuralNetwork.WeightGenerator import (
     zero_initialization,
@@ -10,7 +11,6 @@ from NeuralNetwork.WeightGenerator import (
 )
 from NeuralNetwork.Autograd import Scalar
 from NeuralNetwork.LossFunction import binary_cross_entropy, mse, categorical_cross_entropy
-from tqdm import tqdm
 
 class FFNN:
     """
@@ -100,17 +100,18 @@ class FFNN:
                 metode uniform, lower dan upper bound harus dimasukkan. Seed dianjurkan"
             assert upper_bound >= lower_bound, "Upper bound must be higher than lower bound"
 
-        # Initialize weights
-        self.weights = [[[Scalar(0)] for _ in range(layers[i])] for i in range(len(layers))]
-        self.bias = [[Scalar(0)] for _ in range(len(self.layers))]
-        self.initialize_weights(weight_method)
-
         # Parameter for weights
         self.mean = mean
+        print(self.mean)
         self.variance = variance
         self.seed = seed
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+
+        # Initialize weights
+        self.weights = [[[Scalar(0)] for _ in range(layers[i])] for i in range(len(layers))]
+        self.bias = [[Scalar(0)] for _ in range(len(self.layers))]
+        self.initialize_weights(weight_method)
 
         # Parameters
         assert loss_function in ["mse", "binary_cross_entropy", "categorical_cross_entropy"], f"\
@@ -378,6 +379,15 @@ class FFNN:
             for b in layer:
                 b[0].grad = 0
 
+    def print_weight(self, epoch: int):
+        """
+        Print weight for debugging purposes
+        """
+        print(epoch)
+        for i, layer in enumerate(self.weights):
+            print("Layer ke-" + str(i) + ":")
+            print(layer)
+
 
     def fit(self):
         """
@@ -386,28 +396,27 @@ class FFNN:
         num = len(self.x)
         indices = np.arange(num)
         total_loss = 0
-        
+
         # Create progress bar for epochs
         epoch_pbar = tqdm(range(self.epochs), desc="Epochs", disable=not self.verbose)
-        
+
         for epoch in epoch_pbar:
+            # self.print_weight(epoch)
             if self.randomize:
                 np.random.shuffle(indices)
-            
+
             epoch_loss = 0
             batch_count = 0
-            
+
             # Create progress bar for batches
-            batch_pbar = tqdm(range(0, num, self.batch_size), 
+            batch_pbar = tqdm(range(0, num, self.batch_size),
                             desc=f"Epoch {epoch+1}/{self.epochs} Batches",
                             leave=False,
                             disable=not self.verbose)
-            
+
             for batch_start in batch_pbar:
                 batch_end = min(batch_start + self.batch_size, num)
                 batch_indices = indices[batch_start:batch_end]
-
-                self._zero_gradients()
                 batch_loss = 0
 
                 for i in batch_indices:
@@ -429,6 +438,7 @@ class FFNN:
                     for k in range(len(self.weights[j])):
                         for l in range(len(self.weights[j][k])):
                             self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate / len(batch_indices)
+                            print("Update:", self.weights[j][k][l])
 
                 for j, _ in enumerate(self.bias):
                     for k in range(len(self.bias[j])):
@@ -437,6 +447,8 @@ class FFNN:
                 epoch_loss += batch_loss
                 batch_count += 1
                 batch_pbar.set_postfix({"Batch Loss": batch_loss/len(batch_indices)})
+
+                self._zero_gradients()
 
             avg_epoch_loss = epoch_loss / num
             epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
