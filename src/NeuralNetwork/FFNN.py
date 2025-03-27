@@ -425,7 +425,7 @@ class FFNN:
                         if j == 0:
                             self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
                         else:
-                            self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j-1], self.bias[j], j)
+                            self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j-1], self.bias[j], j)
                         self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
 
                     # Calculate loss
@@ -438,7 +438,7 @@ class FFNN:
                     for k in range(len(self.weights[j])):
                         for l in range(len(self.weights[j][k])):
                             self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate / len(batch_indices)
-                            print("Update:", self.weights[j][k][l])
+                            # print("Update:", self.weights[j][k][l])
 
                 for j, _ in enumerate(self.bias):
                     for k in range(len(self.bias[j])):
