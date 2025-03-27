@@ -33,7 +33,8 @@ class FFNN:
         lower_bound: Optional[int | float] = None,
         upper_bound: Optional[int | float] = None,
         seed: Optional[int | float] = None,
-        verbose: Optional[bool] = False
+        verbose: Optional[bool] = False,
+        randomize: Optional[bool] = False
     ):
 
         """
@@ -56,6 +57,7 @@ class FFNN:
             lower_bound, upper_bound (float, optional): used in uniform weight distribution
             seed (float, optional): seed for normal and uniform distribution
             verbose (bool, optional): See logs of processes. Default False
+            randomize (bool, optional): randomize rows while training. Default False
         Raises:
             PerceptronException: Check if length for array activations and layers are the same
         """
@@ -63,6 +65,7 @@ class FFNN:
         # Initialize the data (input layers)
         assert x.shape[0] == y.shape[0], f"Number of x row ({x.shape}) should be same with\
             number of row in y ({y.shape})"
+
         self.x = np.array([[Scalar(v) for v in row] for row in x])
         self.y = np.array([Scalar(v) for v in y])
 
@@ -86,8 +89,8 @@ class FFNN:
                 {activations} found"
 
         # Initialize weights
-        assert weight_method in ["normal", "uniform", "zero", "xavier", "he", "one"], f"No weighting \
-            method found for {weight_method}"
+        assert weight_method in ["normal", "uniform", "zero", "xavier", "he", "one"], f"No \
+            weighting method found for {weight_method}"
         if weight_method == "normal":
             assert mean is not None and variance is not None, "Jika weight menggunakan metode \
                 normal, mean dan variance harus dimasukkan. Seed dianjurkan dimasukkan"
@@ -117,6 +120,7 @@ class FFNN:
         assert batch_size >= 1, "Number of batch must be greater than 1"
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+        self.randomize = randomize
 
         # Initiate network
         self.layer_net = [[[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))] for _ in range(len(self.x))]
@@ -219,7 +223,7 @@ class FFNN:
                     )
 
 
-    def net(self, weights: np.ndarray, inputs: np.ndarray, bias: np.ndarray) -> np.ndarray:
+    def net(self, weights: np.ndarray, inputs: np.ndarray, bias: np.ndarray, i) -> np.ndarray:
         """
         Calculate net of layer n
 
@@ -230,7 +234,12 @@ class FFNN:
         Returns:
             _type_: _description_
         """
-        return np.dot(weights, np.array(inputs, dtype=object).reshape(-1, 1)) + bias
+        if i == 0:
+            # Perlu di-transpose karena nilai yang diambil dari dataset akan sebesar 1 x num_feature
+            return np.dot(weights, np.array(inputs, dtype=object).reshape(-1, 1)) + bias
+        else:
+            return np.dot(weights, inputs) + bias
+
 
 
     def activate(self, activation: str, val) -> Scalar | np.ndarray | List:
@@ -304,32 +313,69 @@ class FFNN:
             for j, _ in enumerate(self.layers):
                 # From input layer to first hidden
                 if j == 0:
-                    self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0])
+                    # print(self.x[i])
+                    self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
                 # Hidden layers
                 else:
-                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j])
+                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
+                # print(i, "net:", self.layer_net[i][j].shape)
                 self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
+                # print("output:", self.layer_output[i][j].shape)
+                # print(f"{i} {j}:", self.layer_output[i][j], ", shape:", self.layer_output[i][j].shape)
 
             # Calculate the loss
-            print(i)
-            self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1])
+            self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
+            # print("loss:", self.loss_values[i])
 
-            print("Loss:", self.loss_values[i])
+            if self.verbose:
+                print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
 
 
     def backprop(self):
         """
         Do backward propagation
         """
-        for i in range(len(self.x)):
+        for i, _ in enumerate(self.x):
             # Get the gradient
             self.loss_values[i].backward()
 
             # Update weights
-            for j, _ in enumerate(self.weights):
-                for k in range(len(self.weights[j])):
-                    for l in range(len(self.weights[j][k])):
-                        self.weights[j][k][l].value += self.weights[j][k][l].grad
+            for j, _ in enumerate(self.weights): # Through layer
+                for k in range(len(self.weights[j])): # Through baris
+                    for l in range(len(self.weights[j][k])): # Through kolom
+                        if j == 0:
+                            temp_x = self.x[i][k]
+                        else:
+                            temp_x = self.layer_output[i][j - 1][l][0]
+                        # print(i, j, k, l, self.weights[j][k][l])
+                        if not isinstance(temp_x, (float, int, np.number, Scalar)):
+                            raise TypeError(f"Wrong: {type(temp_x)}")
+                        if isinstance(temp_x.value, (Scalar)):
+                            raise TypeError(f"Wrong: {temp_x} {type(temp_x)}")
+                        temp = self.weights[j][k][l].grad * self.learning_rate * temp_x.value
+                        self.weights[j][k][l].value -= temp
+
+            # Update bias
+            for j, _ in enumerate(self.bias):
+                for k in range(len(self.bias[j])):
+                    if j == 0:
+                        temp_x = self.x[i][k]
+                    else:
+                        temp_x = self.layer_output[i][j - 1][0][0]
+                    self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate * temp_x.value
+
+            self._zero_gradients()
+
+    def _zero_gradients(self):
+        """Reset all gradients to zero before processing a new batch"""
+        for layer in self.weights:
+            for neuron in layer:
+                for w in neuron:
+                    w.grad = 0
+
+        for layer in self.bias:
+            for b in layer:
+                b[0].grad = 0
 
 
     def fit(self):
@@ -337,14 +383,67 @@ class FFNN:
         Train model
         """
         for _ in range(self.epochs):
-            for _ in range(0, self.x.shape[0], self.batch_size):
-                self.forward()
-                self.backprop()
+            for i, _ in enumerate(self.x):
+                for j, _ in enumerate(self.layers):
+                    # From input layer to first hidden
+                    if j == 0:
+                        self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
+                    # Hidden layers
+                    else:
+                        self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
+                    self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
 
-    def predict(self, x):
+                # Calculate the loss
+                self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
+
+                if self.verbose:
+                    print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
+
+                # Backprop
+                self.loss_values[i].backward()
+
+                # Update weights
+                for j, _ in enumerate(self.weights): # Through layer
+                    for k in range(len(self.weights[j])): # Through baris
+                        for l in range(len(self.weights[j][k])): # Through kolom
+                            if j == 0:
+                                temp_x = self.x[i][k]
+                            else:
+                                temp_x = self.layer_output[i][j - 1][l][0]
+                            if not isinstance(temp_x, (float, int, np.number, Scalar)):
+                                raise TypeError(f"Wrong: {type(temp_x)}")
+                            temp = self.weights[j][k][l].grad * self.learning_rate * temp_x.value
+                            self.weights[j][k][l].value -= temp
+
+                # Update bias
+                for j, _ in enumerate(self.bias):
+                    for k in range(len(self.bias[j])):
+                        if j == 0:
+                            temp_x = self.x[i][k]
+                        else:
+                            temp_x = self.layer_output[i][j - 1][0][0]
+                        self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate * temp_x.value
+
+                self._zero_gradients()
+
+
+    def predict_single(self, x):
         """
-        Predict target of inputted data
+        Predict target of inputted single data
 
         Args:
-            x (_type_): _description_
+            x (np.array, list): misalkan x adalah array berukuran n fitur
         """
+        # if len(x) != len(self.x[0]):
+        #     return f"Size of inputted data {len(x)} is not the same as training data {len(self.x[0])}"
+        layer_result = [[Scalar(0)] for _ in range(len(self.layers))]
+        for j, _ in enumerate(self.layers):
+            # From input layer to first hidden
+            if j == 0:
+                layer_result[j] = np.dot(self.weights[0], x)
+            # Hidden layers
+            else:
+                layer_result[j] = self.net(self.weights[j], layer_result[j - 1], self.bias[j], j)
+            self.layer_output[j] = self.activate(self.activations[j], layer_result[j])
+
+        return layer_result[-1]

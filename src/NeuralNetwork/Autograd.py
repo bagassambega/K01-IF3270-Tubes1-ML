@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 class Scalar:
     """
@@ -16,11 +17,15 @@ class Scalar:
         - parents (tuple): Node sebelumnya dalam computational graph.
         - operation (str): Operasi yang menghasilkan nilai ini
         """
-        self.value = value
-        self.grad = 0  # Gradien default adalah nol
-        self._backward: callable = lambda: None  # Fungsi untuk backpropagation
-        self._parents = set(parents)  # Menyimpan node asal
-        self._operation = operation  # Menyimpan operasi yang dilakukan parents
+        if isinstance(value, (int, float, np.number)):
+            self.value = value
+            self.grad = 0  # Gradien default adalah nol
+            self._backward: callable = lambda: None  # Fungsi untuk backpropagation
+            self._parents = set(parents)  # Menyimpan node asal
+            self._operation = operation  # Menyimpan operasi yang dilakukan parents
+        else:
+            raise TypeError(f"Value should be integer or float, but got {type(value)}:\
+                            {value}")
 
     #! Basic getter/setter
     def get_value(self) -> int | float:
@@ -247,6 +252,9 @@ class Scalar:
 
         def build_topology(node: Scalar):
             if node not in visited:
+                if not isinstance(node.value, (int, float, np.number)):
+                    raise TypeError(f"Value must be int or float, but got {type(node.value)}\
+                                    in {node.value}")
                 visited.add(node)
                 for parent in node.get_parents():
                     build_topology(parent)
