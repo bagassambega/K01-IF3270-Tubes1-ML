@@ -382,49 +382,60 @@ class FFNN:
         """
         Train model
         """
+        num = len(self.x)
+        indices = np.arange(num)
         for _ in range(self.epochs):
-            for i, _ in enumerate(self.x):
-                for j, _ in enumerate(self.layers):
-                    # From input layer to first hidden
-                    if j == 0:
-                        self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
-                    # Hidden layers
-                    else:
-                        self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
-                    self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
+            if self.randomize:
+                np.random.shuffle(indices)
+            total_loss = 0
+            batch_count = 0
 
-                # Calculate the loss
-                self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
+            for batch_start in range(0, num, self.batch_size):
+                batch_end = min(batch_start + self.batch_size, num)
+                batch_indices = indices[batch_start:batch_end]
 
-                if self.verbose:
-                    print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
+                # Restart gradient di tiap weight
+                self._zero_gradients()
 
-                # Backprop
-                self.loss_values[i].backward()
+                batch_loss = 0
+                for i in batch_indices:
+                    for j, _ in enumerate(self.layers):
+                        # From input layer to first hidden
+                        if j == 0:
+                            self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
+                        # Hidden layers
+                        else:
+                            self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
+                        self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
+
+                    # Calculate the loss
+                    self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
+                    total_loss += self.loss_values[i].value
+                    batch_loss += self.loss_values[i].value
+
+                    # Backprop
+                    self.loss_values[i].backward()
 
                 # Update weights
                 for j, _ in enumerate(self.weights): # Through layer
                     for k in range(len(self.weights[j])): # Through baris
                         for l in range(len(self.weights[j][k])): # Through kolom
-                            if j == 0:
-                                temp_x = self.x[i][k]
-                            else:
-                                temp_x = self.layer_output[i][j - 1][l][0]
-                            if not isinstance(temp_x, (float, int, np.number, Scalar)):
-                                raise TypeError(f"Wrong: {type(temp_x)}")
-                            temp = self.weights[j][k][l].grad * self.learning_rate * temp_x.value
-                            self.weights[j][k][l].value -= temp
+                            self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate
 
                 # Update bias
                 for j, _ in enumerate(self.bias):
                     for k in range(len(self.bias[j])):
-                        if j == 0:
-                            temp_x = self.x[i][k]
-                        else:
-                            temp_x = self.layer_output[i][j - 1][0][0]
-                        self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate * temp_x.value
+                        self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate
 
                 self._zero_gradients()
+
+            batch_count += 1
+
+            if self.verbose:
+                print(f"Loss-{batch_count}: {batch_loss / len(batch_indices)}")
+
+        print(f"Average loss: {total_loss / num}")
+
 
 
     def predict_single(self, x):
@@ -448,7 +459,7 @@ class FFNN:
             self.layer_output[j] = self.activate(self.activations[j], layer_result[j])
 
         return layer_result[-1][0][0].value
-    
+
     def predict(self, x):
         """
         Predict datas
