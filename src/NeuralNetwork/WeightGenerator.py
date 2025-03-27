@@ -15,8 +15,8 @@ def zero_initialization(row_dim: int, col_dim: int):
     Returns:
         tuple of matrix weight and bias
     """
-    weight_matrix = [[Scalar(0) for _ in range(col_dim)] for _ in range(row_dim)]
-    bias_matrix = [[Scalar(0) for _ in range(1)] for _ in range(row_dim)]
+    weight_matrix = [[Scalar(0, label=f'w{i}{j}') for j in range(col_dim)] for i in range(row_dim)]
+    bias_matrix = [[Scalar(0, label=f'b{i}{j}') for j in range(1)] for i in range(row_dim)]
 
     return weight_matrix, bias_matrix
 

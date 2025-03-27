@@ -8,7 +8,7 @@ class Scalar:
     memungkinkan propagasi mundur (backpropagation) untuk menghitung turunan.
     """
 
-    def __init__(self, value: int | float, parents: tuple = (), operation: str = ''):
+    def __init__(self, value: int | float, parents: tuple = (), operation: str = '', label: str=''):
         """
         Inisialisasi objek Scalar value.
         
@@ -23,6 +23,7 @@ class Scalar:
             self._backward: callable = lambda: None  # Fungsi untuk backpropagation
             self._parents = set(parents)  # Menyimpan node asal
             self._operation = operation  # Menyimpan operasi yang dilakukan parents
+            self.label = label
         else:
             raise TypeError(f"Value should be integer or float, but got {type(value)}:\
                             {value}")
@@ -144,7 +145,10 @@ class Scalar:
 
     def __repr__(self):
         """ Representasi string dari objek Scalar. """
-        return f"Scalar(value={self.value}, grad={self.grad})"
+        if self.label != '':
+            return f"Scalar({self.label}={self.value}, grad={self.grad})"
+        else:
+            return f"Scalar(value={self.value}, grad={self.grad})"
 
     def log(self) -> 'Scalar':
         """ Compute natural logarithm of the Scalar """
@@ -265,6 +269,7 @@ class Scalar:
 
         for node in reversed(topo_order):
             node.do_backward()
+            # print("Backward:", node)
 
 
 def softmax(scalars: list['Scalar']) -> list['Scalar']:
@@ -275,7 +280,7 @@ def softmax(scalars: list['Scalar']) -> list['Scalar']:
     - scalars (list of Scalar): Daftar nilai Scalar yang ingin dihitung softmax-nya.
 
     Returns:
-    - list of Scalar: Daftar nilai Scalar yang telah diterapkan fungsi softmax.
+    - list of Scalar: Daftar nilai Scalar yang sudah dihitung
     """
     exp = [Scalar(math.exp(s.value)) for s in scalars]
     sum_exp = sum(exp)
