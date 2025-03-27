@@ -40,18 +40,20 @@ if X is not None:
     X = np.array(X)
     y = np.array(y)
 
+# for i in range(X.shape[0]):
+#     for j in range(X.shape[1]):
+#         X[i][j] = (X[i][j] - 0)/10
 
 y = np.array([float(y[i]) for i in range(len(y))])
 
-temp_x = X[0:40]
-temp_y = y[0:40]
+temp_x = X[0:2000]
+temp_y = y[0:2000]
 
-ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="mse", weight_method="one", activations="sigmoid", verbose=False, epochs=3)
+ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="mse", weight_method="xavier", activations=["sigmoid", "relu", "linear"], verbose=True, epochs=5, lower_bound=0, upper_bound=1, seed=42)
 
 ffnn.fit()
-for i, weights in enumerate(ffnn.weights):
-    print(f"Layer {i}:", weights)
-test = X[:3]
-print("test:", test.shape)
+# for i, weights in enumerate(ffnn.weights):
+#     print(f"Layer {i}:", weights)
+test = X[-20:]
 
 print(ffnn.predict(test))

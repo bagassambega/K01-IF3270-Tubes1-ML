@@ -74,7 +74,7 @@ class FFNN:
         for i, _ in enumerate(layers):
             assert layers[i] > 0, f"Number of neurons {i} must be bigger than 0 ({layers[i]})"
         layers.append(1) # From last hidden layer to output layer. Output layer must be 1
-        self.layers = layers # All layers: input layer, hidden layer, output layer
+        self.layers = layers # All layers: hidden layer + output layer
 
         if isinstance(activations, List):
             # Misal ada 3 layer (termasuk input & output)
@@ -315,19 +315,15 @@ class FFNN:
             for j, _ in enumerate(self.layers):
                 # From input layer to first hidden
                 if j == 0:
-                    # print(self.x[i])
                     self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
                 # Hidden layers
                 else:
-                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_net[i][j - 1], self.bias[j], j)
-                # print(i, "net:", self.layer_net[i][j].shape)
+                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j - 1], self.bias[j], j)
+                
                 self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
-                # print("output:", self.layer_output[i][j].shape)
-                # print(f"{i} {j}:", self.layer_output[i][j], ", shape:", self.layer_output[i][j].shape)
 
             # Calculate the loss
             self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
-            # print("loss:", self.loss_values[i])
 
             if self.verbose:
                 print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
@@ -480,7 +476,13 @@ class FFNN:
             # Hidden layers
             else:
                 layer_result[j] = self.net(self.weights[j], layer_result[j - 1], self.bias[j], j)
-            self.layer_output[j] = self.activate(self.activations[j], layer_result[j])
+            
+            if self.activations[j] == "sigmoid":
+                sigmoid_output = self.activate(self.activations[j], layer_result[j])
+                self.layer_output[j] = np.floor(np.array([scalar.value for scalar in sigmoid_output.flatten()]) * 10).astype(int)
+                print(self.layer_output[j])
+            else:
+                self.layer_output[j] = self.activate(self.activations[j], layer_result[j])
 
         return layer_result[-1][0][0].value
 
