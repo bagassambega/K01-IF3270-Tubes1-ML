@@ -285,7 +285,7 @@ class FFNN:
                 return val.linear()
 
 
-    def loss(self, loss_method: str, y_true: List[Scalar], y_pred: List[Scalar]) -> Scalar:
+    def loss(self, loss_method: str, y_true: List[Scalar], y_pred: List[Scalar], is_softmax: bool = False) -> Scalar:
         """
         Calculate loss/error
 
@@ -299,16 +299,16 @@ class FFNN:
         """
         if isinstance(y_true, Scalar) and isinstance(y_pred, Scalar):
             if loss_method == "categorical_cross_entropy":
-                return categorical_cross_entropy(y_pred=[y_pred], y_true=[y_true])
+                return categorical_cross_entropy(y_pred=[y_pred], y_true=[y_true], is_softmax=is_softmax)
             elif loss_method == "binary_cross_entropy":
-                return binary_cross_entropy(y_pred=[y_pred], y_true=[y_true])
+                return binary_cross_entropy(y_pred=[y_pred], y_true=[y_true], is_softmax=is_softmax)
             else:
                 return mse(y_pred=[y_pred], y_true=[y_true])
         else:
             if loss_method == "categorical_cross_entropy":
-                return categorical_cross_entropy(y_pred=y_pred, y_true=y_true)
+                return categorical_cross_entropy(y_pred=y_pred, y_true=y_true, is_softmax=is_softmax)
             elif loss_method == "binary_cross_entropy":
-                return binary_cross_entropy(y_pred=y_pred, y_true=y_true)
+                return binary_cross_entropy(y_pred=y_pred, y_true=y_true, is_softmax=is_softmax)
             else:
                 return mse(y_pred=y_pred, y_true=y_true)
 
@@ -406,7 +406,7 @@ class FFNN:
                         print("==========================")
 
                         # Calculate loss
-                        self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1])
+                        self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1], is_softmax=True)
                         batch_loss += self.loss_values[i][0].value
                         self.loss_values[i][0].backward()
                     else:
