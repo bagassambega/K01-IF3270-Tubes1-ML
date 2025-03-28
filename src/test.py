@@ -47,11 +47,10 @@ if X is not None:
 X = np.array(X, dtype=np.float32) / 255.0
 y = np.array([float(y[i]) for i in range(len(y))])
 
-temp_x = X[0:2000]
+temp_x = X[0:20]
+temp_y = y[0:20]
 
-temp_y = y[0:2000]
-
-ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="categorical_cross_entropy", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "linear"], verbose=True, epochs=5, seed=42)
+ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="categorical_cross_entropy", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "relu"], verbose=True, epochs=2, seed=42)
 
 ffnn.fit()
 # for i, weights in enumerate(ffnn.weights):
@@ -60,5 +59,5 @@ test = X[-20:]
 real = y[-20:]
 
 
-print("Prediction: ", ffnn.predict(test))
-print("Real: ", real)
+print("Accuracy: ", ffnn.accuracy(test, real, "f1"))
+# print("Real: ", real)

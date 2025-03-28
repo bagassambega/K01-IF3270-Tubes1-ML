@@ -12,6 +12,7 @@ from NeuralNetwork.WeightGenerator import (
 )
 from NeuralNetwork.Autograd import Scalar
 from NeuralNetwork.LossFunction import binary_cross_entropy, mse, categorical_cross_entropy
+from NeuralNetwork.Accuracy import accuracy, f1_score, log_loss
 
 class FFNN:
     """
@@ -551,4 +552,25 @@ class FFNN:
 
         return model
 
+    def accuracy(self, x, y_true, acc_method:str):
+        """
+        X is the data to be predicted, y is the true data
 
+        Args:
+            x (_type_): _description_
+            y (_type_): _description_
+            acc_method (str): accuracy, f1, logloss
+        """
+        y_pred = self.predict(x)
+        assert len(y_pred) == len(y_true), "Length of x and y is not the same"
+        score = []
+        for i in range(len(y_pred)):
+            if acc_method == "accuracy":
+                score.append(accuracy(y_pred=y_pred[i], y_true=y_true[i]))
+            elif acc_method == "f1":
+                score.append(f1_score(y_pred=y_pred[i], y_true=y_true[i]))
+            else:
+                score.append(log_loss(y_pred=y_pred[i], y_true=y_true[i]))
+        
+        avg_score = sum(score) / len(score)
+        return avg_score
