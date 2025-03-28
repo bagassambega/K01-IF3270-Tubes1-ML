@@ -359,7 +359,7 @@ class FFNN:
 
         for idx, val in enumerate(self.y):
             one_hot_y[idx][val.value.astype(int)] = 1
-            print(f"onehot-{idx}: {one_hot_y[idx]}")
+            # print(f"onehot-{idx}: {one_hot_y[idx]}")
 
         # Create progress bar for epochs
         epoch_pbar = tqdm(range(self.epochs), desc="Epochs", disable=not self.verbose)
@@ -398,14 +398,14 @@ class FFNN:
                     if self.activations[-1] == "softmax":
                         # Apply softmax to the output layer
                         softmax_probs = self.softmax(self.layer_output[i][-1])
-                        print(f"softmax_probs-{i}:\n{softmax_probs}")
-                        print("------")
+                        # print(f"softmax_probs-{i}:\n{softmax_probs}")
+                        # print("------")
                         for idx, val in enumerate(self.layer_output[i][-1]):
                             self.layer_output[i][-1][idx][0].value = softmax_probs[idx]
-                        print("[After]")
-                        print(f"Baris-{i} {self.activations[-1]}")
-                        print(f"{self.layer_output[i][-1]}")
-                        print("==========================")
+                        # print("[After]")
+                        # print(f"Baris-{i} {self.activations[-1]}")
+                        # print(f"{self.layer_output[i][-1]}")
+                        # print("==========================")
 
                         # Calculate loss
                         self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1], is_softmax=True)
@@ -457,7 +457,7 @@ class FFNN:
             
             layer_result = self.activate(self.activations[j], layer_result)
 
-        print(f"layer_result:\n{layer_result}")
+        # print(f"layer_result:\n{layer_result}")
 
         # Convert Scalar objects to float values if necessary
         logits = np.array([val.value if isinstance(val, Scalar) else val for val in layer_result.flatten()])
@@ -552,7 +552,7 @@ class FFNN:
 
         return model
 
-    def accuracy(self, x, y_true, acc_method:str):
+    def accuracy(self, x, y_true, acc_method:str, verbose: bool = True):
         """
         X is the data to be predicted, y is the true data
 
@@ -565,12 +565,14 @@ class FFNN:
         assert len(y_pred) == len(y_true), "Length of x and y is not the same"
         score = []
         for i in range(len(y_pred)):
+            if verbose:
+                print(f"y_pred: {y_pred[i]}, y_true: {y_true[i]}")
             if acc_method == "accuracy":
                 score.append(accuracy(y_pred=y_pred[i], y_true=y_true[i]))
             elif acc_method == "f1":
                 score.append(f1_score(y_pred=y_pred[i], y_true=y_true[i]))
             else:
                 score.append(log_loss(y_pred=y_pred[i], y_true=y_true[i]))
-        
+
         avg_score = sum(score) / len(score)
         return avg_score

@@ -50,14 +50,14 @@ y = np.array([float(y[i]) for i in range(len(y))])
 temp_x = X[0:20]
 temp_y = y[0:20]
 
-ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="categorical_cross_entropy", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "relu"], verbose=True, epochs=2, seed=42)
+ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="categorical_cross_entropy", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "softmax"], verbose=True, epochs=2, seed=42)
 
 ffnn.fit()
 # for i, weights in enumerate(ffnn.weights):
 #     print(f"Layer {i}:", weights)
 test = X[-20:]
 real = y[-20:]
-
+print(type(real))
 
 print("Accuracy: ", ffnn.accuracy(test, real, "f1"))
 # print("Real: ", real)
