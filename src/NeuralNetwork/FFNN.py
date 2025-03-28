@@ -1,8 +1,6 @@
 from typing import List, Optional
 from tqdm import tqdm
-import pickle
 import numpy as np
-import matplotlib.pyplot as plt
 from NeuralNetwork.WeightGenerator import (
     zero_initialization,
     random_uniform_distribution,
@@ -13,7 +11,6 @@ from NeuralNetwork.WeightGenerator import (
 )
 from NeuralNetwork.Autograd import Scalar
 from NeuralNetwork.LossFunction import binary_cross_entropy, mse, categorical_cross_entropy
-from NeuralNetwork.Accuracy import accuracy, f1_score, log_loss
 
 class FFNN:
     """
@@ -21,10 +18,8 @@ class FFNN:
     """
     def __init__(
         self,
-        x_train: np.ndarray | List,
-        y_train: np.ndarray | List,
-        x_val: np.ndarray | List,
-        y_val: np.ndarray | List, 
+        x: np.ndarray | List,
+        y: np.ndarray | List,
         layers: List[int],
         activations: List[str] | str = "relu",
         weight_method: str = "uniform",
@@ -49,8 +44,8 @@ class FFNN:
         layer secara hardcoded di dalam kode
 
         Args:
-            x_train (np.ndarray): dataset
-            y_train (np.ndarray): target
+            x (np.ndarray): dataset
+            y (np.ndarray): target
             layers (List[int]): number of neurons in each layers (hidden layer)
             activations (List[str]) | str: activation function for each hidden layers + output layer
             loss_function (str, optional): Loss function. Defaults to "mse".
@@ -67,28 +62,16 @@ class FFNN:
         """
 
         # Initialize the data (input layers)
-        assert x_train.shape[0] == y_train.shape[0], f"Number of x_train row ({x_train.shape}) should be same with\
-            number of row in y_train ({y_train.shape})"
+        assert x.shape[0] == y.shape[0], f"Number of x row ({x.shape}) should be same with\
+            number of row in y ({y.shape})"
 
-        self.x_train = np.array([[Scalar(v) for v in row] for row in x_train])
-        self.y_train = np.array([Scalar(v) for v in y_train])
-
-        assert x_val.shape[0] == y_val.shape[0], f"Number of x_val row ({x_val.shape}) should be same with\
-            number of row in y_val ({y_val.shape})"
-        
-        self.x_val = np.array([[Scalar(v) for v in row] for row in x_val])
-        self.y_val = np.array([Scalar(v) for v in y_val])
+        self.x = np.array([[Scalar(v) for v in row] for row in x])
+        self.y = np.array([Scalar(v) for v in y])
 
         # Check on layers
         for i, _ in enumerate(layers):
             assert layers[i] > 0, f"Number of neurons {i} must be bigger than 0 ({layers[i]})"
-        if isinstance(activations, str):
-            if activations ==  "softmax":
-                raise ValueError("Softmax only can be applied in last layer")
-        if activations[-1] == "softmax":
-            layers.append(10) # From last hidden layer to output layer. Output layer must be 1
-        else:
-            layers.append(1)
+        layers.append(10) # From last hidden layer to output layer. Output layer must be 1
         self.layers = layers # All layers: hidden layer + output layer
 
         if isinstance(activations, List):
@@ -96,17 +79,13 @@ class FFNN:
             # Activation akan ada di hidden layer 1 dan output layer saja
             assert len(activations) == len(layers), "Number of activations must be the same \
                 with number of layers"
-            for i, act in enumerate(activations):
-                if act == "softmax" and i != len(layers) - 1:
-                    raise ValueError("Can't use softmax except in last layer")
             for act in activations:
-                assert act in ["relu", "tanh", "sigmoid", "linear", "softmax"], f"No activation {act} found"
+                assert act in ["relu", "tanh", "sigmoid", "linear"], f"No activation {act} found"
             self.activations = activations
         else:
-            assert activations == "softmax", "Cannot using softmax in all layers. Use in last layer only"
+            self.activations = [activations] * len(layers)
             assert activations in ["relu", "tanh", "sigmoid", "linear"], f"No activation \
                 {activations} found"
-            self.activations = [activations] * len(layers)
 
         # Initialize weights
         assert weight_method in ["normal", "uniform", "zero", "xavier", "he", "one"], f"No \
@@ -121,6 +100,7 @@ class FFNN:
 
         # Parameter for weights
         self.mean = mean
+        print(self.mean)
         self.variance = variance
         self.seed = seed
         self.lower_bound = lower_bound
@@ -143,11 +123,11 @@ class FFNN:
         self.randomize = randomize
 
         # Initiate network
-        self.layer_net = [[[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))] for _ in range(len(self.x_train))]
-        self.layer_output = [[[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))] for _ in range(len(self.x_train))]
+        self.layer_net = [[[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))] for _ in range(len(self.x))]
+        self.layer_output = [[[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))] for _ in range(len(self.x))]
 
         # Loss value for each row of dataset
-        self.loss_values: List[Scalar] = [Scalar(0) for _ in range(x_train.shape[0])]
+        self.loss_values: List[Scalar] = [Scalar(0) for _ in range(x.shape[0])]
 
         # Verbose
         self.verbose = verbose
@@ -164,7 +144,7 @@ class FFNN:
             for i, _ in enumerate(self.layers):
                 if i == 0:
                     self.weights[i], self.bias[i] = zero_initialization(
-                        row_dim=self.layers[0], col_dim=self.x_train.shape[1]
+                        row_dim=self.layers[0], col_dim=self.x.shape[1]
                     )
                 else:
                     self.weights[i], self.bias[i] = zero_initialization(
@@ -175,7 +155,7 @@ class FFNN:
             for i, _ in enumerate(self.layers):
                 if i == 0:
                     self.weights[i], self.bias[i] = one_initialization(
-                        row_dim=self.layers[0], col_dim=self.x_train.shape[1]
+                        row_dim=self.layers[0], col_dim=self.x.shape[1]
                     )
                 else:
                     self.weights[i], self.bias[i] = one_initialization(
@@ -189,7 +169,7 @@ class FFNN:
                         mean=self.mean,
                         variance=self.variance,
                         row_dim=self.layers[0], # Hidden layer pertama
-                        col_dim=self.x_train.shape[1], # Input dataset
+                        col_dim=self.x.shape[1], # Input dataset
                         seed=self.seed,
                     )
                 else:
@@ -205,7 +185,7 @@ class FFNN:
             for i, _ in enumerate(self.layers):
                 if i == 0:
                     self.weights[i], self.bias[i] = xavier_initialization(
-                        row_dim=self.layers[0], col_dim=self.x_train.shape[1], seed=self.seed
+                        row_dim=self.layers[0], col_dim=self.x.shape[1], seed=self.seed
                     )
                 else:
                     self.weights[i], self.bias[i] = xavier_initialization(
@@ -216,7 +196,7 @@ class FFNN:
             for i, _ in enumerate(self.layers):
                 if i == 0:
                     self.weights[i], self.bias[i] = he_initialization(
-                        row_dim=self.layers[0], col_dim=self.x_train.shape[1], seed=self.seed
+                        row_dim=self.layers[0], col_dim=self.x.shape[1], seed=self.seed
                     )
                 else:
                     self.weights[i], self.bias[i] = he_initialization(
@@ -230,7 +210,7 @@ class FFNN:
                         lower_bound=self.lower_bound,
                         upper_bound=self.upper_bound,
                         row_dim=self.layers[0],
-                        col_dim=self.x_train.shape[1],
+                        col_dim=self.x.shape[1],
                         seed=self.seed,
                     )
                 else:
@@ -296,7 +276,7 @@ class FFNN:
                 return val.linear()
 
 
-    def loss(self, loss_method: str, y_true: List[Scalar], y_pred: List[Scalar], is_softmax: bool = False) -> Scalar:
+    def loss(self, loss_method: str, y_true: List[Scalar], y_pred: List[Scalar]) -> Scalar:
         """
         Calculate loss/error
 
@@ -310,32 +290,19 @@ class FFNN:
         """
         if isinstance(y_true, Scalar) and isinstance(y_pred, Scalar):
             if loss_method == "categorical_cross_entropy":
-                return categorical_cross_entropy(y_pred=[y_pred], y_true=[y_true], is_softmax=is_softmax)
+                return categorical_cross_entropy(y_pred=[y_pred], y_true=[y_true])
             elif loss_method == "binary_cross_entropy":
-                return binary_cross_entropy(y_pred=[y_pred], y_true=[y_true], is_softmax=is_softmax)
+                return binary_cross_entropy(y_pred=[y_pred], y_true=[y_true])
             else:
                 return mse(y_pred=[y_pred], y_true=[y_true])
         else:
             if loss_method == "categorical_cross_entropy":
-                return categorical_cross_entropy(y_pred=y_pred, y_true=y_true, is_softmax=is_softmax)
+                return categorical_cross_entropy(y_pred=y_pred, y_true=y_true)
             elif loss_method == "binary_cross_entropy":
-                return binary_cross_entropy(y_pred=y_pred, y_true=y_true, is_softmax=is_softmax)
+                return binary_cross_entropy(y_pred=y_pred, y_true=y_true)
             else:
                 return mse(y_pred=y_pred, y_true=y_true)
-            
-    def plot_loss(self):
-        plt.figure(figsize=(8, 5))
-        plt.plot(range(1, len(self.training_losses) + 1), self.training_losses, label="Training Loss", marker='o')
-        
-        if self.validation_losses:
-            plt.plot(range(1, len(self.validation_losses) + 1), self.validation_losses, label="Validation Loss", marker='s')
 
-        plt.xlabel("Epochs")
-        plt.ylabel("Loss")
-        plt.title("Training and Validation Loss")
-        plt.legend()
-        plt.grid()
-        plt.show()
 
     def _zero_gradients(self):
         """Reset all gradients to zero before processing a new batch"""
@@ -358,105 +325,30 @@ class FFNN:
             print("Layer ke-" + str(i) + ":")
             print(layer)
 
-    # def softmax(self, logit_array):
-    #     # Extract scalar values
-    #     logits = np.array([scalar for scalar in logit_array.flatten()])
-
-    #     max_logit = logits[0]
-    #     for logit in logits:
-    #         if max_logit.value < logit.value:
-    #             max_logit = logit
-
-    #     # Compute softmax
-    #     exp_logits = np.array([np.exp(logit.value - max_logit.value) for logit in logits])
-    #     print(f"exp_logits: {exp_logits}")
-
-    #     for idx, logit in enumerate(logits):
-    #         logit.value = exp_logits[idx] / np.sum(exp_logits)
-
-    #     return logits
-    
     def softmax(self, logit_array):
         # Extract scalar values
-        logits = np.array([scalar for scalar in logit_array.flatten()])
-
-        # Find max logit (for numerical stability)
-        max_logit = logits[0]
-        for logit in logits:
-            if max_logit.value < logit.value:
-                max_logit = logit
-
-        # Compute exponentials with stabilization
-        exp_logits = np.array([np.exp(logit.value - max_logit.value) for logit in logits])
-        sum_exp_logits = np.sum(exp_logits)
-
-        # Compute softmax probabilities
-        softmax_probs = exp_logits / sum_exp_logits
-
-        # Store softmax values and compute gradients
-        for i, logit in enumerate(logits):
-            logit.value = softmax_probs[i]  # Update value to softmax output
-
-            # Compute derivative of softmax (Jacobian diagonal term)
-            logit.grad = softmax_probs[i] * (1 - softmax_probs[i])
-
-        return logits
-
-    def compute_validation_loss(self, X_val, y_val):
-        """
-        Compute validation loss without updating model weights
-        """
-        num_val = len(X_val)
-        val_loss = 0
-
-        one_hot_y_val = np.zeros((num_val, 10))
-        for idx, val in enumerate(y_val):
-            one_hot_y_val[idx][val.value.astype(int)] = 1
-
-        for i in range(num_val):
-            # Forward pass
-            for j in range(len(self.layers)):
-                if j == 0:
-                    self.layer_net[i][j] = self.net(self.weights[0], np.array([X_val[i]]).reshape(-1, 1), self.bias[0], j)
-                else:
-                    self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j - 1], self.bias[j], j)
-                
-                if self.activations[-1] == "softmax":
-                    self.layer_output[i][j] = self.activate("relu", self.layer_net[i][j])
-                else:
-                    self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
-
-            if self.activations[-1] == "softmax":
-                softmax_probs = self.softmax(self.layer_output[i][-1])
-                for idx, val in enumerate(self.layer_output[i][-1]):
-                    self.layer_output[i][-1][idx][0] = softmax_probs[idx]
-
-                loss = self.loss(self.loss_function, one_hot_y_val[i], self.layer_output[i][-1], is_softmax=True)
-                val_loss += loss[0].value
-            else:
-                loss = self.loss(self.loss_function, [y_val[i]], self.layer_output[i][-1][0])
-                val_loss += loss.value
-
-        return val_loss / num_val
+        logits = np.array([scalar.value for scalar in logit_array.flatten()])
+        
+        # Compute softmax
+        exp_logits = np.exp(logits - np.max(logits))  # Stabilized exponentiation
+        softmax_probs = exp_logits / np.sum(exp_logits)  # Normalize
+        
+        return softmax_probs
 
     def fit(self):
         """
         Train model with progress bar
         """
-        num = len(self.x_train)
+        num = len(self.x)
         indices = np.arange(num)
         total_loss = 0
-
-        # Store losses for visualization
-        self.training_losses = []
-        self.validation_losses = []
 
         # One-hot encode the labels
         one_hot_y = np.zeros((num, 10))
 
-        for idx, val in enumerate(self.y_train):
+        for idx, val in enumerate(self.y):
             one_hot_y[idx][val.value.astype(int)] = 1
-            # print(f"onehot-{idx}: {one_hot_y[idx]}")
+            print(f"onehot-{idx}: {one_hot_y[idx]}")
 
         # Create progress bar for epochs
         epoch_pbar = tqdm(range(self.epochs), desc="Epochs", disable=not self.verbose)
@@ -484,34 +376,29 @@ class FFNN:
                     # Forward pass
                     for j in range(len(self.layers)):
                         if j == 0:
-                            self.layer_net[i][j] = self.net(self.weights[0], np.array([self.x_train[i]]).reshape(-1,1), self.bias[0], j)
+                            self.layer_net[i][j] = self.net(self.weights[0], np.array([self.x[i]]).reshape(-1,1), self.bias[0], j)
                         else:
                             self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j-1], self.bias[j], j)
-                        if self.activations[-1] == "softmax":
-                            self.layer_output[i][j] = self.activate("relu", self.layer_net[i][j])
-                        else:
-                            self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
+                        self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
+                        print(f"Baris-{i} layer-{j} {self.activations[j]}")
+                        print(f"{self.layer_output[i][j]}")
+                        print("------")
 
-                    if self.activations[-1] == "softmax":
-                        # Apply softmax to the output layer
-                        softmax_probs = self.softmax(self.layer_output[i][-1])
-                        # print(f"softmax_probs-{i}:\n{softmax_probs}")
-                        # print("------")
-                        for idx, val in enumerate(self.layer_output[i][-1]):
-                            self.layer_output[i][-1][idx][0] = softmax_probs[idx]
-                        # print("[After]")
-                        # print(f"Baris-{i} {self.activations[-1]}")
-                        # print(f"{self.layer_output[i][-1]}")
-                        # print("==========================")
-
-                        # Calculate loss
-                        self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1], is_softmax=True)
-                        batch_loss += self.loss_values[i][0].value
-                        self.loss_values[i][0].backward()
-                    else:
-                        self.loss_values[i] = self.loss(self.loss_function, [self.y_train[i]], self.layer_output[i][-1][0])
-                        batch_loss += self.loss_values[i].value
-                        self.loss_values[i].backward()
+                    # Apply softmax to the output layer
+                    softmax_probs = self.softmax(self.layer_output[i][-1])
+                    print(f"softmax_probs-{i}:\n{softmax_probs}")
+                    print("------")
+                    for idx, val in enumerate(self.layer_output[i][-1]):
+                        self.layer_output[i][-1][idx][0].value = softmax_probs[idx]
+                    print("[After]")
+                    print(f"Baris-{i} {self.activations[-1]}")
+                    print(f"{self.layer_output[i][-1]}")
+                    print("==========================")
+            
+                    # Calculate loss
+                    self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1])
+                    batch_loss += self.loss_values[i][0].value
+                    self.loss_values[i][0].backward()
 
                 # Update weights and biases
                 for j, _ in enumerate(self.weights): # Per layer
@@ -531,29 +418,11 @@ class FFNN:
                 self._zero_gradients()
 
             avg_epoch_loss = epoch_loss / num
-            # epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
+            epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
             total_loss += epoch_loss
-            self.training_losses.append(avg_epoch_loss)  # Store training loss
-
-            # ---------------------------
-            # Compute Validation Loss
-            # ---------------------------
-            if self.x_val is not None and self.y_val is not None:
-                val_loss = self.compute_validation_loss(self.x_val, self.y_val)
-                self.validation_losses.append(val_loss)  # Store validation loss
-                epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss, "Val Loss": val_loss})
-            else:
-                epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
-
-            if self.verbose:
-                print(f"\nEpoch-{i}")
-                print(f"Training Loss: {avg_epoch_loss}")
-                print(f"Validation Loss: {val_loss}")
 
         if self.verbose:
             print(f"\nFinal Average Loss: {total_loss/(num*self.epochs):.4f}")
-            
-        self.plot_loss()  # Call the plotting function after training
 
     def predict_single(self, x):
         """
@@ -572,7 +441,7 @@ class FFNN:
             
             layer_result = self.activate(self.activations[j], layer_result)
 
-        # print(f"layer_result:\n{layer_result}")
+        print(f"layer_result:\n{layer_result}")
 
         # Convert Scalar objects to float values if necessary
         logits = np.array([val.value if isinstance(val, Scalar) else val for val in layer_result.flatten()])
@@ -594,100 +463,3 @@ class FFNN:
             return self.predict_single(x)
 
         return np.array([self.predict_single(row) for row in x])
-    
-
-    def save_model(self, filepath: str):
-        """
-        Save the neural network model to a file using pickle.
-        Args:
-            filepath (str): Path to the file where the model will be saved
-        """
-        model_data = {
-            'x_train': self.x_train,
-            'y_train': self.y_train,
-            'layers': self.layers,
-            'activations': self.activations,
-            'weights': self.weights,
-            'bias': self.bias,
-            'loss_function': self.loss_function,
-            'batch_size': self.batch_size,
-            'epochs': self.epochs,
-            'learning_rate': self.learning_rate,
-            'mean': self.mean,
-            'variance': self.variance,
-            'lower_bound': self.lower_bound,
-            'upper_bound': self.upper_bound,
-            'seed': self.seed,
-            'verbose': self.verbose,
-            'randomize': self.randomize
-        }
-
-        with open(filepath, 'wb') as f:
-            pickle.dump(model_data, f)
-
-    @classmethod
-    def load_model(cls, filepath: str):
-        """
-        Load a neural network model from a file using pickle.
-        Args:
-            filepath (str): Path to the file containing the saved model
-        Returns:
-            FFNN: Reconstructed neural network model
-        """
-        with open(filepath, 'rb') as f:
-            model_data = pickle.load(f)
-
-    
-        x = model_data['x']
-        y = model_data['y']
-        layers = model_data['layers']
-        activations = model_data['activations']
-        
-      
-        model = cls(
-            x_train=np.array([[v.value for v in row] for row in x]), 
-            y_train=np.array([v.value for v in y]),
-            layers=layers[:-1],  
-            activations=activations,
-            batch_size=model_data['batch_size'],
-            epochs=model_data['epochs'],
-            learning_rate=model_data['learning_rate'],
-            weight_method='uniform',
-            loss_function=model_data['loss_function'],
-            mean=model_data['mean'],
-            variance=model_data['variance'],
-            lower_bound=model_data['lower_bound'],
-            upper_bound=model_data['upper_bound'],
-            seed=model_data['seed'],
-            verbose=model_data['verbose'],
-            randomize=model_data['randomize']
-        )
-        model.weights = model_data['weights']
-        model.bias = model_data['bias']
-
-        return model
-
-    def accuracy(self, x, y_true, acc_method:str, verbose: bool = True):
-        """
-        X is the data to be predicted, y_true is the true data
-
-        Args:
-            x (_type_): _description_
-            y_true (_type_): _description_
-            acc_method (str): accuracy, f1, logloss
-        """
-        y_pred = self.predict(x)
-        assert len(y_pred) == len(y_true), "Length of x and y_true is not the same"
-        score = []
-        for i in range(len(y_pred)):
-            if verbose:
-                print(f"y_pred: {y_pred[i]}, y_true: {y_true[i]}")
-            if acc_method == "accuracy":
-                score.append(accuracy(y_pred=y_pred[i], y_true=y_true[i]))
-            elif acc_method == "f1":
-                score.append(f1_score(y_pred=y_pred[i], y_true=y_true[i]))
-            else:
-                score.append(log_loss(y_pred=y_pred[i], y_true=y_true[i]))
-
-        avg_score = sum(score) / len(score)
-        return avg_score

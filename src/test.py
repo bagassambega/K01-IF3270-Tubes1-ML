@@ -47,19 +47,18 @@ if X is not None:
 X = np.array(X, dtype=np.float32) / 255.0
 y = np.array([float(y[i]) for i in range(len(y))])
 
-temp_x_train = X[0:80]
-temp_y_train = y[0:80]
-temp_x_val = X[80:100]
-temp_y_val = y[80:100]
+temp_x = X[0:2000]
 
-ffnn = FFNN(x_train=temp_x_train, y_train=temp_y_train, x_val=temp_x_val, y_val=temp_y_val, layers=[2, 3], loss_function="mse", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "softmax"], verbose=True, epochs=5, seed=42)
+temp_y = y[0:2000]
+
+ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="mse", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "linear"], verbose=True, epochs=5, seed=42)
 
 ffnn.fit()
 # for i, weights in enumerate(ffnn.weights):
 #     print(f"Layer {i}:", weights)
 test = X[-20:]
 real = y[-20:]
-print(type(real))
 
-print("Accuracy: ", ffnn.accuracy(test, real, "f1"))
-# print("Real: ", real)
+
+print("Prediction: ", ffnn.predict(test))
+print("Real: ", real)
