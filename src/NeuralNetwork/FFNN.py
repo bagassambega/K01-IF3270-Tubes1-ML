@@ -16,8 +16,6 @@ class FFNN:
     """
     Implementation of Feed Forward Neural Netrowk
     """
-
-
     def __init__(
         self,
         x: np.ndarray | List,
@@ -73,7 +71,7 @@ class FFNN:
         # Check on layers
         for i, _ in enumerate(layers):
             assert layers[i] > 0, f"Number of neurons {i} must be bigger than 0 ({layers[i]})"
-        layers.append(1) # From last hidden layer to output layer. Output layer must be 1
+        layers.append(10) # From last hidden layer to output layer. Output layer must be 1
         self.layers = layers # All layers: hidden layer + output layer
 
         if isinstance(activations, List):
@@ -243,7 +241,6 @@ class FFNN:
         return np.dot(weights, inputs) + bias
 
 
-
     def activate(self, activation: str, val) -> Scalar | np.ndarray | List:
         """
         Activation function
@@ -307,63 +304,6 @@ class FFNN:
                 return mse(y_pred=y_pred, y_true=y_true)
 
 
-    # def forward(self):
-    #     """
-    #     Do forward propagation
-    #     """
-    #     for i, _ in enumerate(self.x):
-    #         for j, _ in enumerate(self.layers):
-    #             # From input layer to first hidden
-    #             if j == 0:
-    #                 self.layer_net[i][j] = self.net(self.weights[0], [self.x[i]], self.bias[0], j)
-    #             # Hidden layers
-    #             else:
-    #                 self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j - 1], self.bias[j], j)
-
-    #             self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
-
-    #         # Calculate the loss
-    #         self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
-
-    #         if self.verbose:
-    #             print("Loss:", self.loss_values[i], "Predicted:", self.layer_output[i][-1][0], "Target:", self.y[i])
-
-
-    # def backprop(self):
-    #     """
-    #     Do backward propagation
-    #     """
-    #     for i, _ in enumerate(self.x):
-    #         # Get the gradient
-    #         self.loss_values[i].backward()
-
-    #         # Update weights
-    #         for j, _ in enumerate(self.weights): # Through layer
-    #             for k in range(len(self.weights[j])): # Through baris
-    #                 for l in range(len(self.weights[j][k])): # Through kolom
-    #                     if j == 0:
-    #                         temp_x = self.x[i][k]
-    #                     else:
-    #                         temp_x = self.layer_output[i][j - 1][l][0]
-    #                     # print(i, j, k, l, self.weights[j][k][l])
-    #                     if not isinstance(temp_x, (float, int, np.number, Scalar)):
-    #                         raise TypeError(f"Wrong: {type(temp_x)}")
-    #                     if isinstance(temp_x.value, (Scalar)):
-    #                         raise TypeError(f"Wrong: {temp_x} {type(temp_x)}")
-    #                     temp = self.weights[j][k][l].grad * self.learning_rate * temp_x.value
-    #                     self.weights[j][k][l].value -= temp
-
-    #         # Update bias
-    #         for j, _ in enumerate(self.bias):
-    #             for k in range(len(self.bias[j])):
-    #                 if j == 0:
-    #                     temp_x = self.x[i][k]
-    #                 else:
-    #                     temp_x = self.layer_output[i][j - 1][0][0]
-    #                 self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate * temp_x.value
-
-    #         self._zero_gradients()
-
     def _zero_gradients(self):
         """Reset all gradients to zero before processing a new batch"""
         for layer in self.weights:
@@ -375,6 +315,7 @@ class FFNN:
             for b in layer:
                 b[0].grad = 0
 
+
     def print_weight(self, epoch: int):
         """
         Print weight for debugging purposes
@@ -384,6 +325,15 @@ class FFNN:
             print("Layer ke-" + str(i) + ":")
             print(layer)
 
+    def softmax(self, logit_array):
+        # Extract scalar values
+        logits = np.array([scalar.value for scalar in logit_array.flatten()])
+        
+        # Compute softmax
+        exp_logits = np.exp(logits - np.max(logits))  # Stabilized exponentiation
+        softmax_probs = exp_logits / np.sum(exp_logits)  # Normalize
+        
+        return softmax_probs
 
     def fit(self):
         """
@@ -392,6 +342,13 @@ class FFNN:
         num = len(self.x)
         indices = np.arange(num)
         total_loss = 0
+
+        # One-hot encode the labels
+        one_hot_y = np.zeros((num, 10))
+
+        for idx, val in enumerate(self.y):
+            one_hot_y[idx][val.value.astype(int)] = 1
+            print(f"onehot-{idx}: {one_hot_y[idx]}")
 
         # Create progress bar for epochs
         epoch_pbar = tqdm(range(self.epochs), desc="Epochs", disable=not self.verbose)
@@ -427,10 +384,21 @@ class FFNN:
                         print(f"{self.layer_output[i][j]}")
                         print("------")
 
+                    # Apply softmax to the output layer
+                    softmax_probs = self.softmax(self.layer_output[i][-1])
+                    print(f"softmax_probs-{i}:\n{softmax_probs}")
+                    print("------")
+                    for idx, val in enumerate(self.layer_output[i][-1]):
+                        self.layer_output[i][-1][idx][0].value = softmax_probs[idx]
+                    print("[After]")
+                    print(f"Baris-{i} {self.activations[-1]}")
+                    print(f"{self.layer_output[i][-1]}")
+                    print("==========================")
+            
                     # Calculate loss
-                    self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
-                    batch_loss += self.loss_values[i].value
-                    self.loss_values[i].backward()
+                    self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1])
+                    batch_loss += self.loss_values[i][0].value
+                    self.loss_values[i][0].backward()
 
                 # Update weights and biases
                 for j, _ in enumerate(self.weights): # Per layer
@@ -456,61 +424,44 @@ class FFNN:
         if self.verbose:
             print(f"\nFinal Average Loss: {total_loss/(num*self.epochs):.4f}")
 
-
-
     def predict_single(self, x):
         """
-        Predict target of inputted single data
-
-        Args:
-            x (np.array, list): misalkan x adalah array berukuran n fitur
+        Predict target of a single input.
         """
         x = np.array(x)
         if x.ndim == 1:
             x = x.reshape(-1, 1)
-        elif x.ndim == 2:
-            if x.shape[1] != 1:
-                x = x.reshape(-1, 1)
-        layer_result = [[Scalar(0)] for _ in range(len(self.layers))]
-        for j, _ in enumerate(self.layers):
-            # From input layer to first hidden
+
+        layer_result = x  # Start with input
+        for j in range(len(self.layers)):
             if j == 0:
-                layer_result[j] = np.dot(self.weights[0], x)
-            # Hidden layers
+                layer_result = np.dot(self.weights[0], layer_result) + self.bias[0]
             else:
-                layer_result[j] = self.net(self.weights[j], layer_result[j - 1], self.bias[j], j)
+                layer_result = np.dot(self.weights[j], layer_result) + self.bias[j]
             
-            # if self.activations[j] == "sigmoid":
-            #     sigmoid_output = self.activate(self.activations[j], layer_result[j])
-            #     layer_result[j] = np.floor(np.array([scalar.value for scalar in sigmoid_output.flatten()]) * 10).astype(int)
-            # else:
-            print(f"Layer-{j}, net: {layer_result[j]}")
-            print(f"Activation: {self.activations[j]}")
-            layer_result[j] = self.activate(self.activations[j], layer_result[j])
-            print(f"Layer-{j}, output: {layer_result[j]}")
-        print(f"Result: {layer_result[-1][0][0]}")
+            layer_result = self.activate(self.activations[j], layer_result)
 
+        print(f"layer_result:\n{layer_result}")
 
-        return layer_result[-1][0][0].value
+        # Convert Scalar objects to float values if necessary
+        logits = np.array([val.value if isinstance(val, Scalar) else val for val in layer_result.flatten()])
+
+        # Apply softmax
+        softmax_probs = np.exp(logits - np.max(logits))  # Prevent overflow
+        softmax_probs /= np.sum(softmax_probs)
+
+        # Return class with highest probability
+        return np.argmax(softmax_probs)
 
     def predict(self, x):
         """
-        Predict datas
-
-        Args:
-            x (np.array): _description_
+        Predict class labels for multiple inputs.
         """
-        print("Mulai predict")
-        for i, weight in enumerate(self.weights):
-            print(f"Weight-{i}")
-            print(weight)
-        print("---------------")
-        if isinstance(x, list):
-            x = np.array(x)
-
+        x = np.array(x)
+        
         if x.ndim == 1:
             return self.predict_single(x)
-        res = []
-        for row in x:
-            res.append(self.predict_single(row))
-        return res
+
+        return np.array([self.predict_single(row) for row in x])
+
+
