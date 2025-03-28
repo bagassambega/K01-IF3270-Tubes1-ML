@@ -71,7 +71,13 @@ class FFNN:
         # Check on layers
         for i, _ in enumerate(layers):
             assert layers[i] > 0, f"Number of neurons {i} must be bigger than 0 ({layers[i]})"
-        layers.append(10) # From last hidden layer to output layer. Output layer must be 1
+        if isinstance(activations, str):
+            if activations ==  "softmax":
+                raise ValueError("Softmax only can be applied in last layer")
+        if activations[-1] == "softmax":
+            layers.append(10) # From last hidden layer to output layer. Output layer must be 1
+        else:
+            layers.append(1)
         self.layers = layers # All layers: hidden layer + output layer
 
         if isinstance(activations, List):
@@ -79,13 +85,17 @@ class FFNN:
             # Activation akan ada di hidden layer 1 dan output layer saja
             assert len(activations) == len(layers), "Number of activations must be the same \
                 with number of layers"
+            for i, act in enumerate(activations):
+                if act == "softmax" and i != len(layers) - 1:
+                    raise ValueError("Can't use softmax except in last layer")
             for act in activations:
-                assert act in ["relu", "tanh", "sigmoid", "linear"], f"No activation {act} found"
+                assert act in ["relu", "tanh", "sigmoid", "linear", "softmax"], f"No activation {act} found"
             self.activations = activations
         else:
-            self.activations = [activations] * len(layers)
+            assert activations == "softmax", "Cannot using softmax in all layers. Use in last layer only"
             assert activations in ["relu", "tanh", "sigmoid", "linear"], f"No activation \
                 {activations} found"
+            self.activations = [activations] * len(layers)
 
         # Initialize weights
         assert weight_method in ["normal", "uniform", "zero", "xavier", "he", "one"], f"No \
@@ -100,7 +110,6 @@ class FFNN:
 
         # Parameter for weights
         self.mean = mean
-        print(self.mean)
         self.variance = variance
         self.seed = seed
         self.lower_bound = lower_bound
@@ -379,26 +388,31 @@ class FFNN:
                             self.layer_net[i][j] = self.net(self.weights[0], np.array([self.x[i]]).reshape(-1,1), self.bias[0], j)
                         else:
                             self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j-1], self.bias[j], j)
-                        self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
-                        print(f"Baris-{i} layer-{j} {self.activations[j]}")
-                        print(f"{self.layer_output[i][j]}")
-                        print("------")
+                        if self.activations[-1] == "softmax":
+                            self.layer_output[i][j] = self.activate("relu", self.layer_net[i][j])
+                        else:
+                            self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
 
-                    # Apply softmax to the output layer
-                    softmax_probs = self.softmax(self.layer_output[i][-1])
-                    print(f"softmax_probs-{i}:\n{softmax_probs}")
-                    print("------")
-                    for idx, val in enumerate(self.layer_output[i][-1]):
-                        self.layer_output[i][-1][idx][0].value = softmax_probs[idx]
-                    print("[After]")
-                    print(f"Baris-{i} {self.activations[-1]}")
-                    print(f"{self.layer_output[i][-1]}")
-                    print("==========================")
-            
-                    # Calculate loss
-                    self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1])
-                    batch_loss += self.loss_values[i][0].value
-                    self.loss_values[i][0].backward()
+                    if self.activations[-1] == "softmax":
+                        # Apply softmax to the output layer
+                        softmax_probs = self.softmax(self.layer_output[i][-1])
+                        print(f"softmax_probs-{i}:\n{softmax_probs}")
+                        print("------")
+                        for idx, val in enumerate(self.layer_output[i][-1]):
+                            self.layer_output[i][-1][idx][0].value = softmax_probs[idx]
+                        print("[After]")
+                        print(f"Baris-{i} {self.activations[-1]}")
+                        print(f"{self.layer_output[i][-1]}")
+                        print("==========================")
+
+                        # Calculate loss
+                        self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1])
+                        batch_loss += self.loss_values[i][0].value
+                        self.loss_values[i][0].backward()
+                    else:
+                        self.loss_values[i] = self.loss(self.loss_function, [self.y[i]], self.layer_output[i][-1][0])
+                        batch_loss += self.loss_values[i].value
+                        self.loss_values[i].backward()
 
                 # Update weights and biases
                 for j, _ in enumerate(self.weights): # Per layer
