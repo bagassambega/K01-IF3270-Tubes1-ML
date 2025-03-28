@@ -2,6 +2,7 @@ from typing import List, Optional
 from tqdm import tqdm
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 from NeuralNetwork.WeightGenerator import (
     zero_initialization,
     random_uniform_distribution,
@@ -321,7 +322,20 @@ class FFNN:
                 return binary_cross_entropy(y_pred=y_pred, y_true=y_true, is_softmax=is_softmax)
             else:
                 return mse(y_pred=y_pred, y_true=y_true)
+            
+    def plot_loss(self):
+        plt.figure(figsize=(8, 5))
+        plt.plot(range(1, len(self.training_losses) + 1), self.training_losses, label="Training Loss", marker='o')
+        
+        if self.validation_losses:
+            plt.plot(range(1, len(self.validation_losses) + 1), self.validation_losses, label="Validation Loss", marker='s')
 
+        plt.xlabel("Epochs")
+        plt.ylabel("Loss")
+        plt.title("Training and Validation Loss")
+        plt.legend()
+        plt.grid()
+        plt.show()
 
     def _zero_gradients(self):
         """Reset all gradients to zero before processing a new batch"""
@@ -425,7 +439,6 @@ class FFNN:
 
         return val_loss / num_val
 
-
     def fit(self):
         """
         Train model with progress bar
@@ -433,6 +446,10 @@ class FFNN:
         num = len(self.x_train)
         indices = np.arange(num)
         total_loss = 0
+
+        # Store losses for visualization
+        self.training_losses = []
+        self.validation_losses = []
 
         # One-hot encode the labels
         one_hot_y = np.zeros((num, 10))
@@ -516,12 +533,14 @@ class FFNN:
             avg_epoch_loss = epoch_loss / num
             # epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
             total_loss += epoch_loss
+            self.training_losses.append(avg_epoch_loss)  # Store training loss
 
             # ---------------------------
             # Compute Validation Loss
             # ---------------------------
             if self.x_val is not None and self.y_val is not None:
                 val_loss = self.compute_validation_loss(self.x_val, self.y_val)
+                self.validation_losses.append(val_loss)  # Store validation loss
                 epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss, "Val Loss": val_loss})
             else:
                 epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
@@ -533,6 +552,8 @@ class FFNN:
 
         if self.verbose:
             print(f"\nFinal Average Loss: {total_loss/(num*self.epochs):.4f}")
+            
+        self.plot_loss()  # Call the plotting function after training
 
     def predict_single(self, x):
         """
