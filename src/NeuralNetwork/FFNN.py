@@ -1,5 +1,6 @@
 from typing import List, Optional
 from tqdm import tqdm
+import pickle
 import numpy as np
 from NeuralNetwork.WeightGenerator import (
     zero_initialization,
@@ -463,5 +464,77 @@ class FFNN:
             return self.predict_single(x)
 
         return np.array([self.predict_single(row) for row in x])
+    
+
+    def save_model(self, filepath: str):
+        """
+        Save the neural network model to a file using pickle.
+        Args:
+            filepath (str): Path to the file where the model will be saved
+        """
+        model_data = {
+            'x': self.x,
+            'y': self.y,
+            'layers': self.layers,
+            'activations': self.activations,
+            'weights': self.weights,
+            'bias': self.bias,
+            'loss_function': self.loss_function,
+            'batch_size': self.batch_size,
+            'epochs': self.epochs,
+            'learning_rate': self.learning_rate,
+            'mean': self.mean,
+            'variance': self.variance,
+            'lower_bound': self.lower_bound,
+            'upper_bound': self.upper_bound,
+            'seed': self.seed,
+            'verbose': self.verbose,
+            'randomize': self.randomize
+        }
+
+        with open(filepath, 'wb') as f:
+            pickle.dump(model_data, f)
+
+    @classmethod
+    def load_model(cls, filepath: str):
+        """
+        Load a neural network model from a file using pickle.
+        Args:
+            filepath (str): Path to the file containing the saved model
+        Returns:
+            FFNN: Reconstructed neural network model
+        """
+        with open(filepath, 'rb') as f:
+            model_data = pickle.load(f)
+
+    
+        x = model_data['x']
+        y = model_data['y']
+        layers = model_data['layers']
+        activations = model_data['activations']
+        
+      
+        model = cls(
+            x=np.array([[v.value for v in row] for row in x]), 
+            y=np.array([v.value for v in y]),
+            layers=layers[:-1],  
+            activations=activations,
+            batch_size=model_data['batch_size'],
+            epochs=model_data['epochs'],
+            learning_rate=model_data['learning_rate'],
+            weight_method='uniform',
+            loss_function=model_data['loss_function'],
+            mean=model_data['mean'],
+            variance=model_data['variance'],
+            lower_bound=model_data['lower_bound'],
+            upper_bound=model_data['upper_bound'],
+            seed=model_data['seed'],
+            verbose=model_data['verbose'],
+            randomize=model_data['randomize']
+        )
+        model.weights = model_data['weights']
+        model.bias = model_data['bias']
+
+        return model
 
 
