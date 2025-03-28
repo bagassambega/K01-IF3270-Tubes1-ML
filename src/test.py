@@ -47,12 +47,12 @@ if X is not None:
 X = np.array(X, dtype=np.float32) / 255.0
 y = np.array([float(y[i]) for i in range(len(y))])
 
-temp_x_train = X[0:80]
-temp_y_train = y[0:80]
-temp_x_val = X[80:100]
-temp_y_val = y[80:100]
+temp_x_train = X[0:100]
+temp_y_train = y[0:100]
+temp_x_val = X[100:120]
+temp_y_val = y[100:120]
 
-ffnn = FFNN(x_train=temp_x_train, y_train=temp_y_train, x_val=temp_x_val, y_val=temp_y_val, layers=[2, 3], loss_function="categorical_cross_entropy", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "softmax"], verbose=True, epochs=5, seed=42)
+ffnn = FFNN(x_train=temp_x_train, y_train=temp_y_train, x_val=temp_x_val, y_val=temp_y_val, layers=[2, 3], loss_function="mse", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "softmax"], verbose=True, epochs=3, seed=42)
 
 ffnn.fit()
 # for i, weights in enumerate(ffnn.weights):

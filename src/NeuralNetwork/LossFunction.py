@@ -9,7 +9,6 @@ def mse(y_true: list[Scalar], y_pred: list[Scalar]) -> Scalar:
     errors = [(yt - yp) for yt, yp in zip(y_true, y_pred)]
     loss = sum(e ** 2 for e in errors) * (1 / n)
 
-    print(f"loss mse: {loss}")
     return loss
 
 
@@ -61,14 +60,17 @@ def categorical_cross_entropy(y_true, y_pred, is_softmax: bool = False):
         epsilon = 1e-9  # To prevent log(0)
         n = len(y_true)
 
-        # Extract values from Scalar objects
-        y_pred_values = np.array([s[0].value for s in y_pred])
-
-        # Clip predictions for numerical stability
-        y_pred_values = np.clip(y_pred_values, epsilon, 1.0 - epsilon)
+        # # Clip predictions for numerical stability
+        for y in y_pred:
+            if y[0].value < epsilon:
+                y[0].value = epsilon
+            elif y[0].value > epsilon:
+                y[0].value = 1.0 - epsilon
 
         # Compute categorical cross-entropy loss
-        loss_value = -np.sum(y_true * np.log(y_pred_values)) / n
-        loss_value = [Scalar(loss_value)]
+        loss_value = 0
+        for i in range(n):
+            loss_value += y_true[i] * y_pred[i][0].log()
+        loss_value *= -1
 
-        return loss_value
+        return [loss_value]

@@ -2,6 +2,7 @@ from typing import List, Optional
 from tqdm import tqdm
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 from NeuralNetwork.WeightGenerator import (
     zero_initialization,
     random_uniform_distribution,
@@ -295,6 +296,20 @@ class FFNN:
                 return val.linear()
 
 
+    def plot_loss(self):
+        plt.figure(figsize=(8, 5))
+        plt.plot(range(1, len(self.training_losses) + 1), self.training_losses, label="Training Loss", marker='o')
+        
+        if self.validation_losses:
+            plt.plot(range(1, len(self.validation_losses) + 1), self.validation_losses, label="Validation Loss", marker='s')
+
+        plt.xlabel("Epochs")
+        plt.ylabel("Loss")
+        plt.title("Training and Validation Loss")
+        plt.legend()
+        plt.grid()
+        plt.show()
+
     def loss(self, loss_method: str, y_true: List[Scalar], y_pred: List[Scalar], is_softmax: bool = False) -> Scalar:
         """
         Calculate loss/error
@@ -434,6 +449,10 @@ class FFNN:
         indices = np.arange(num)
         total_loss = 0
 
+        # Store losses for visualization
+        self.training_losses = []
+        self.validation_losses = []
+
         # One-hot encode the labels
         one_hot_y = np.zeros((num, 10))
 
@@ -457,11 +476,11 @@ class FFNN:
                             desc=f"Epoch {epoch+1}/{self.epochs} Batches",
                             leave=False,
                             disable=not self.verbose)
-
+            
             for batch_start in batch_pbar:
                 batch_end = min(batch_start + self.batch_size, num)
                 batch_indices = indices[batch_start:batch_end]
-                batch_loss = 0
+                batch_loss = Scalar(0)
 
                 for i in batch_indices:
                     # Forward pass
@@ -478,30 +497,27 @@ class FFNN:
                     if self.activations[-1] == "softmax":
                         # Apply softmax to the output layer
                         softmax_probs = self.softmax(self.layer_output[i][-1])
-                        # print(f"softmax_probs-{i}:\n{softmax_probs}")
-                        # print("------")
+    
                         for idx, val in enumerate(self.layer_output[i][-1]):
                             self.layer_output[i][-1][idx][0] = softmax_probs[idx]
-                        # print("[After]")
-                        # print(f"Baris-{i} {self.activations[-1]}")
-                        # print(f"{self.layer_output[i][-1]}")
-                        # print("==========================")
 
                         # Calculate loss
                         self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1], is_softmax=True)
-                        batch_loss += self.loss_values[i][0].value
-                        self.loss_values[i][0].backward()
+                        batch_loss += self.loss_values[i][0]
+                        #self.loss_values[i][0].backward()
                     else:
                         self.loss_values[i] = self.loss(self.loss_function, [self.y_train[i]], self.layer_output[i][-1][0])
-                        batch_loss += self.loss_values[i].value
-                        self.loss_values[i].backward()
+                        batch_loss += self.loss_values[i]
+                        #self.loss_values[i].backward()
+                
+                batch_loss = batch_loss / len(batch_indices)
+                batch_loss.backward()
 
                 # Update weights and biases
                 for j, _ in enumerate(self.weights): # Per layer
                     for k in range(len(self.weights[j])): # Per baris
                         for l in range(len(self.weights[j][k])): # Per kolom
                             self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate
-                            # print("Update:", self.weights[j][k][l])
 
                 for j, _ in enumerate(self.bias):
                     for k in range(len(self.bias[j])):
@@ -509,30 +525,34 @@ class FFNN:
 
                 epoch_loss += batch_loss
                 batch_count += 1
-                batch_pbar.set_postfix({"Batch Loss": batch_loss/len(batch_indices)})
+                batch_pbar.set_postfix({"Batch Loss": batch_loss.value})
 
                 self._zero_gradients()
 
             avg_epoch_loss = epoch_loss / num
             # epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
             total_loss += epoch_loss
+            self.training_losses.append(avg_epoch_loss.value)  # Store training loss
 
             # ---------------------------
             # Compute Validation Loss
             # ---------------------------
             if self.x_val is not None and self.y_val is not None:
                 val_loss = self.compute_validation_loss(self.x_val, self.y_val)
-                epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss, "Val Loss": val_loss})
+                self.validation_losses.append(val_loss)  # Store validation loss
+                epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss.value, "Val Loss": val_loss})
             else:
-                epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
+                epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss.value})
 
             if self.verbose:
-                print(f"\nEpoch-{i}")
-                print(f"Training Loss: {avg_epoch_loss}")
+                print(f"\nEpoch-{epoch}")
+                print(f"Training Loss: {avg_epoch_loss.value}")
                 print(f"Validation Loss: {val_loss}")
 
         if self.verbose:
-            print(f"\nFinal Average Loss: {total_loss/(num*self.epochs):.4f}")
+            print(f"\nFinal Average Loss: {total_loss.value/(num*self.epochs):.4f}")
+        
+        self.plot_loss()  # Call the plotting function after training
 
     def predict_single(self, x):
         """
