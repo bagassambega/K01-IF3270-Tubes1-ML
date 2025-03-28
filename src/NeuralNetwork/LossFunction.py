@@ -9,7 +9,7 @@ def mse(y_true: list[Scalar], y_pred: list[Scalar]) -> Scalar:
     errors = [(yt - yp) for yt, yp in zip(y_true, y_pred)]
     loss = sum(e ** 2 for e in errors) * (1 / n)
 
-    print(f"loss mse: {loss}")
+    # print(f"loss mse: {loss}")
     return loss
 
 
