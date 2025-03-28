@@ -29,8 +29,21 @@ def binary_cross_entropy(y_true: list[Scalar], y_pred: list[Scalar], is_softmax:
 
         return loss
     else:
-        # TODO
-        return 0
+        assert len(y_true) == len(y_pred), "y_true and y_pred must have the same length"
+        n = len(y_true)
+
+        # Extract values from Scalar objects
+        y_pred_values = np.array([s[0].value for s in y_pred])
+
+        epsilon = 1e-9
+
+        # Apply softmax
+        y_pred_softmax = np.exp(y_pred_values) / np.sum(np.exp(y_pred_values), axis=0)
+        y_pred_softmax = np.clip(y_pred_softmax, epsilon, 1.0 - epsilon)
+
+        # Compute binary cross-entropy loss
+        loss_value = -np.sum(y_true * np.log(y_pred_softmax) + (1 - y_true) * np.log(1 - y_pred_softmax)) / n
+        return [Scalar(loss_value)]
 
 def categorical_cross_entropy(y_true, y_pred, is_softmax: bool = False):
     """ Compute Categorical Cross Entropy (CCE) loss """
