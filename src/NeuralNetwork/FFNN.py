@@ -310,7 +310,7 @@ class FFNN:
         # Add L2 regularization
         if self.l2_lambda > 0:
             l2_loss = sum(w**2 for layer in self.weights for neuron in layer for w in neuron)
-            loss += 0.5 * self.l2_lambda * l2_loss
+            loss += self.l2_lambda * l2_loss
             
         return loss
 
