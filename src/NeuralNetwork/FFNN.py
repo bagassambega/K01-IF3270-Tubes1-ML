@@ -33,7 +33,9 @@ class FFNN:
         upper_bound: Optional[int | float] = None,
         seed: Optional[int | float] = None,
         verbose: Optional[bool] = False,
-        randomize: Optional[bool] = False
+        randomize: Optional[bool] = False,
+        l1_lambda: float = 0.0,
+        l2_lambda: float = 0.0
     ):
 
         """
@@ -110,6 +112,10 @@ class FFNN:
         self.weights = [[[Scalar(0)] for _ in range(layers[i])] for i in range(len(layers))]
         self.bias = [[[Scalar(0)] for _ in range(1)] for _ in range(len(self.layers))]
         self.initialize_weights(weight_method)
+
+        # Initialize Regularization
+        self.l1_lambda = l1_lambda
+        self.l2_lambda = l2_lambda
 
         # Parameters
         assert loss_function in ["mse", "binary_cross_entropy", "categorical_cross_entropy"], f"\
@@ -278,30 +284,35 @@ class FFNN:
 
     def loss(self, loss_method: str, y_true: List[Scalar], y_pred: List[Scalar]) -> Scalar:
         """
-        Calculate loss/error
-
-        Args:
-            error_method (str): _description_
-            y_true (List[Scalar]): _description_
-            y_pred (List[Scalar]): _description_
-
-        Returns:
-            Scalar: _description_
+        Calculate loss/error with regularization
         """
+        # Original loss calculation
         if isinstance(y_true, Scalar) and isinstance(y_pred, Scalar):
             if loss_method == "categorical_cross_entropy":
-                return categorical_cross_entropy(y_pred=[y_pred], y_true=[y_true])
+                loss = categorical_cross_entropy(y_pred=[y_pred], y_true=[y_true])
             elif loss_method == "binary_cross_entropy":
-                return binary_cross_entropy(y_pred=[y_pred], y_true=[y_true])
+                loss = binary_cross_entropy(y_pred=[y_pred], y_true=[y_true])
             else:
-                return mse(y_pred=[y_pred], y_true=[y_true])
+                loss = mse(y_pred=[y_pred], y_true=[y_true])
         else:
             if loss_method == "categorical_cross_entropy":
-                return categorical_cross_entropy(y_pred=y_pred, y_true=y_true)
+                loss = categorical_cross_entropy(y_pred=y_pred, y_true=y_true)
             elif loss_method == "binary_cross_entropy":
-                return binary_cross_entropy(y_pred=y_pred, y_true=y_true)
+                loss = binary_cross_entropy(y_pred=y_pred, y_true=y_true)
             else:
-                return mse(y_pred=y_pred, y_true=y_true)
+                loss = mse(y_pred=y_pred, y_true=y_true)
+
+        # Add L1 regularization
+        if self.l1_lambda > 0:
+            l1_loss = sum(abs(w) for layer in self.weights for neuron in layer for w in neuron)
+            loss += self.l1_lambda * l1_loss
+            
+        # Add L2 regularization
+        if self.l2_lambda > 0:
+            l2_loss = sum(w**2 for layer in self.weights for neuron in layer for w in neuron)
+            loss += self.l2_lambda * l2_loss
+            
+        return loss
 
 
     def _zero_gradients(self):
@@ -370,6 +381,7 @@ class FFNN:
             for batch_start in batch_pbar:
                 batch_end = min(batch_start + self.batch_size, num)
                 batch_indices = indices[batch_start:batch_end]
+                batch_size = len(batch_indices)
                 batch_loss = 0
 
                 for i in batch_indices:
@@ -399,13 +411,33 @@ class FFNN:
                     self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1])
                     batch_loss += self.loss_values[i][0].value
                     self.loss_values[i][0].backward()
+                
+                # Add regularization gradients BEFORE weight update
+                if self.l1_lambda > 0 or self.l2_lambda > 0:
+                    for j in range(len(self.weights)):
+                        for k in range(len(self.weights[j])):
+                            for l in range(len(self.weights[j][k])):
+                                w = self.weights[j][k][l]
+                                # L1 regularization gradient
+                                if self.l1_lambda > 0:
+                                    w.grad += (self.l1_lambda * np.sign(w.value)) / batch_size
+                                # L2 regularization gradient
+                                if self.l2_lambda > 0:
+                                    w.grad += (self.l2_lambda * w.value) / batch_size
 
-                # Update weights and biases
-                for j, _ in enumerate(self.weights): # Per layer
-                    for k in range(len(self.weights[j])): # Per baris
-                        for l in range(len(self.weights[j][k])): # Per kolom
-                            self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate
-                            # print("Update:", self.weights[j][k][l])
+
+                 # Update weights with regularization
+                if self.l1_lambda > 0 or self.l2_lambda > 0:
+                    for j, _ in enumerate(self.weights):
+                        for k in range(len(self.weights[j])):
+                            for l in range(len(self.weights[j][k])):
+                                self.weights[j][k][l].value -= (self.weights[j][k][l].grad * self.learning_rate) / batch_size
+                else:  # update weights without regularization
+                    for j, _ in enumerate(self.weights): # Per layer
+                        for k in range(len(self.weights[j])): # Per baris
+                            for l in range(len(self.weights[j][k])): # Per kolom
+                                self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate
+                                # print("Update:", self.weights[j][k][l])
 
                 for j, _ in enumerate(self.bias):
                     for k in range(len(self.bias[j])):
@@ -423,7 +455,7 @@ class FFNN:
 
         if self.verbose:
             print(f"\nFinal Average Loss: {total_loss/(num*self.epochs):.4f}")
-
+    
     def predict_single(self, x):
         """
         Predict target of a single input.
