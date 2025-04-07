@@ -12,6 +12,64 @@ from NeuralNetwork.WeightGenerator import (
 from NeuralNetwork.Autograd import Scalar
 from NeuralNetwork.LossFunction import binary_cross_entropy, mse, categorical_cross_entropy
 
+class Layer:
+    """
+    Representation of a single layer
+    """
+    def __init__(self, data_length: int, input_dim: int, output_dim: int, activation: str, weight_method: str = "uniform", seed: Optional[int] = None, mean: Optional[float] = None, variance: Optional[float] = 0
+                 , lower_bound: Optional[float] = None, upper_bound: Optional[float] = None):
+        """
+        Initialize a single layer of the neural network.
+        Args:
+            input_dim (int): Number of input neurons.
+            output_dim (int): Number of output neurons.
+            activation (str): Activation function for the layer.
+            weight_method (str): Weight initialization method.
+            seed (int, optional): Seed for random weight initialization.
+        """
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.activation = activation
+        self.weights, self.bias = self.initialize_weights(weight_method, seed)
+        self.net_input = [[Scalar(0) for _ in range(output_dim)] for _ in range(data_length)] # Array of net result in one layer, for all rows
+        self.output = [[Scalar(0) for _ in range(output_dim)] for _ in range(data_length)]     # Stores the activated output
+        self.mean = mean
+        self.variance = variance
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
+
+    def initialize_weights(self, method: str, seed: Optional[int]):
+        """
+        Initialize weights and biases based on the specified method.
+        """
+        if method == "zero":
+            return zero_initialization(row_dim=self.output_dim, col_dim=self.input_dim)
+        elif method == "one":
+            return one_initialization(row_dim=self.output_dim, col_dim=self.input_dim)
+        elif method == "normal":
+            return normal_distribution(mean=self.mean, variance=self.variance, row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+        elif method == "xavier":
+            return xavier_initialization(row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+        elif method == "he":
+            return he_initialization(row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+        else:  # Default to uniform distribution
+            return random_uniform_distribution(lower_bound=-1, upper_bound=1, row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+
+
+    def activate(self, val):
+        """
+        Apply activation function to the input.
+        """
+        if self.activation == "relu":
+            return val.relu()
+        elif self.activation == "sigmoid":
+            return val.sigmoid()
+        elif self.activation == "tanh":
+            return val.tanh()
+        else:  # Linear activation
+            return val.linear()
+
+
 class FFNN:
     """
     Implementation of Feed Forward Neural Netrowk
@@ -74,7 +132,7 @@ class FFNN:
         for i, _ in enumerate(layers):
             assert layers[i] > 0, f"Number of neurons {i} must be bigger than 0 ({layers[i]})"
         layers.append(10) # From last hidden layer to output layer. Output layer must be 1
-        self.layers = layers # All layers: hidden layer + output layer
+        self.num_layers = layers # All layers: hidden layer + output layer
 
         if isinstance(activations, List):
             # Misal ada 3 layer (termasuk input & output)
@@ -102,16 +160,10 @@ class FFNN:
 
         # Parameter for weights
         self.mean = mean
-        print(self.mean)
         self.variance = variance
         self.seed = seed
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
-
-        # Initialize weights
-        self.weights = [[[Scalar(0)] for _ in range(layers[i])] for i in range(len(layers))]
-        self.bias = [[[Scalar(0)] for _ in range(1)] for _ in range(len(self.layers))]
-        self.initialize_weights(weight_method)
 
         # Initialize Regularization
         self.l1_lambda = l1_lambda
@@ -129,107 +181,18 @@ class FFNN:
         self.randomize = randomize
 
         # Initiate network
-        self.layer_net = [[[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))] for _ in range(len(self.x))]
-        self.layer_output = [[[Scalar(0) for _ in range(layers[j])] for j in range(len(layers))] for _ in range(len(self.x))]
-
+        self.layers = [Layer(data_length=x.shape[0], input_dim=x.shape[1], output_dim=layers[0], activation=self.activations[0], weight_method=weight_method, seed=seed)]
+        for i in range(1, len(layers)):
+            self.layers.append(Layer(data_length=x.shape[0], input_dim=layers[i-1], output_dim=layers[i], activation=self.activations[i], weight_method=weight_method, seed=seed)) 
         # Loss value for each row of dataset
-        self.loss_values: List[Scalar] = [Scalar(0) for _ in range(x.shape[0])]
+        self.loss_values = [Scalar(0) for _ in range(x.shape[0])]
 
         # Verbose
-        self.verbose = verbose
+        self.verbose: bool = verbose
 
 
-    def initialize_weights(self, method: str = "uniform"):
-        """
-        Initialize weights and biases
 
-        Args:
-            method (str, optional): weights initialization. Defaults to "random".
-        """
-        if method == "zero":  # Zero initialization
-            for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = zero_initialization(
-                        row_dim=self.layers[0], col_dim=self.x.shape[1]
-                    )
-                else:
-                    self.weights[i], self.bias[i] = zero_initialization(
-                        row_dim=self.layers[i], col_dim=self.layers[i-1]
-                    )
-
-        elif method == "one":  # Zero initialization
-            for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = one_initialization(
-                        row_dim=self.layers[0], col_dim=self.x.shape[1]
-                    )
-                else:
-                    self.weights[i], self.bias[i] = one_initialization(
-                        row_dim=self.layers[i], col_dim=self.layers[i-1]
-                    )
-
-        elif method == "normal":  # Normal distribution
-            for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = normal_distribution(
-                        mean=self.mean,
-                        variance=self.variance,
-                        row_dim=self.layers[0], # Hidden layer pertama
-                        col_dim=self.x.shape[1], # Input dataset
-                        seed=self.seed,
-                    )
-                else:
-                    self.weights[i], self.bias[i] = normal_distribution(
-                        mean=self.mean,
-                        variance=self.variance,
-                        row_dim=self.layers[i],
-                        col_dim=self.layers[i-1],
-                        seed=self.seed,
-                    )
-
-        elif method == "xavier":  # Xavier initialization
-            for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = xavier_initialization(
-                        row_dim=self.layers[0], col_dim=self.x.shape[1], seed=self.seed
-                    )
-                else:
-                    self.weights[i], self.bias[i] = xavier_initialization(
-                        row_dim=self.layers[i], col_dim=self.layers[i-1], seed=self.seed
-                    )
-
-        elif method == "he":  # He initialization
-            for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = he_initialization(
-                        row_dim=self.layers[0], col_dim=self.x.shape[1], seed=self.seed
-                    )
-                else:
-                    self.weights[i], self.bias[i] = he_initialization(
-                        row_dim=self.layers[i], col_dim=self.layers[i-1], seed=self.seed
-                    )
-
-        else:  # Uniform distribution (default)
-            for i, _ in enumerate(self.layers):
-                if i == 0:
-                    self.weights[i], self.bias[i] = random_uniform_distribution(
-                        lower_bound=self.lower_bound,
-                        upper_bound=self.upper_bound,
-                        row_dim=self.layers[0],
-                        col_dim=self.x.shape[1],
-                        seed=self.seed,
-                    )
-                else:
-                    self.weights[i], self.bias[i] = random_uniform_distribution(
-                        lower_bound=self.lower_bound,
-                        upper_bound=self.upper_bound,
-                        row_dim=self.layers[i],
-                        col_dim=self.layers[i-1],
-                        seed=self.seed,
-                    )
-
-
-    def net(self, weights: np.ndarray, inputs: np.ndarray, bias: np.ndarray, i) -> np.ndarray:
+    def net(self, weights: np.ndarray, inputs: np.ndarray, bias: np.ndarray) -> np.ndarray:
         """
         Calculate net of layer n
 
@@ -304,26 +267,26 @@ class FFNN:
 
         # Add L1 regularization
         if self.l1_lambda > 0:
-            l1_loss = sum(abs(w) for layer in self.weights for neuron in layer for w in neuron)
+            l1_loss = sum(abs(w) for layer in self.layers for neuron in layer.weights  for w in neuron)
             loss += self.l1_lambda * l1_loss
-            
+
         # Add L2 regularization
         if self.l2_lambda > 0:
-            l2_loss = sum(w**2 for layer in self.weights for neuron in layer for w in neuron)
+            l2_loss = sum(w**2 for layer in self.layers for neuron in layer.weights for w in neuron)
             loss += self.l2_lambda * l2_loss
-            
+
         return loss
 
 
     def _zero_gradients(self):
         """Reset all gradients to zero before processing a new batch"""
-        for layer in self.weights:
-            for neuron in layer:
+        for layer in self.layers:
+            for neuron in layer.weights:
                 for w in neuron:
                     w.grad = 0
 
-        for layer in self.bias:
-            for b in layer:
+        for layer in self.layers:
+            for b in layer.bias:
                 b[0].grad = 0
 
 
@@ -332,18 +295,26 @@ class FFNN:
         Print weight for debugging purposes
         """
         print(epoch)
-        for i, layer in enumerate(self.weights):
-            print("Layer ke-" + str(i) + ":")
+        for layer, i in enumerate(self.layers):
+            print(f"Layer-{i}:")
             print(layer)
 
     def softmax(self, logit_array):
+        """_summary_
+
+        Args:
+            logit_array (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         # Extract scalar values
         logits = np.array([scalar.value for scalar in logit_array.flatten()])
-        
+
         # Compute softmax
         exp_logits = np.exp(logits - np.max(logits))  # Stabilized exponentiation
         softmax_probs = exp_logits / np.sum(exp_logits)  # Normalize
-        
+
         return softmax_probs
 
     def fit(self):
@@ -359,7 +330,6 @@ class FFNN:
 
         for idx, val in enumerate(self.y):
             one_hot_y[idx][val.value.astype(int)] = 1
-            print(f"onehot-{idx}: {one_hot_y[idx]}")
 
         # Create progress bar for epochs
         epoch_pbar = tqdm(range(self.epochs), desc="Epochs", disable=not self.verbose)
@@ -386,38 +356,29 @@ class FFNN:
 
                 for i in batch_indices:
                     # Forward pass
-                    for j in range(len(self.layers)):
+                    for j in range(len(self.num_layers)):
                         if j == 0:
-                            self.layer_net[i][j] = self.net(self.weights[0], np.array([self.x[i]]).reshape(-1,1), self.bias[0], j)
+                            self.layers[j].net_input[i] = self.net(self.layers[0].weights, np.array([self.x[i]]).reshape(-1,1), self.layers[0].bias)
                         else:
-                            self.layer_net[i][j] = self.net(self.weights[j], self.layer_output[i][j-1], self.bias[j], j)
-                        self.layer_output[i][j] = self.activate(self.activations[j], self.layer_net[i][j])
-                        print(f"Baris-{i} layer-{j} {self.activations[j]}")
-                        print(f"{self.layer_output[i][j]}")
-                        print("------")
+                            self.layers[j].net_input[i] = self.net(self.layers[j].weights, self.layers[j-1].output[i], self.layers[j].bias)
+                        self.layers[j].output[i] = self.activate(self.activations[j], self.layers[j].net_input[i])
 
                     # Apply softmax to the output layer
-                    softmax_probs = self.softmax(self.layer_output[i][-1])
-                    print(f"softmax_probs-{i}:\n{softmax_probs}")
-                    print("------")
-                    for idx, val in enumerate(self.layer_output[i][-1]):
-                        self.layer_output[i][-1][idx][0].value = softmax_probs[idx]
-                    print("[After]")
-                    print(f"Baris-{i} {self.activations[-1]}")
-                    print(f"{self.layer_output[i][-1]}")
-                    print("==========================")
-            
+                    softmax_probs = self.softmax(self.layers[-1].output[i])
+                    for idx, val in enumerate(self.layers[-1].output[i]):
+                        self.layers[-1].output[i][idx][0].value = softmax_probs[idx]
+
                     # Calculate loss
-                    self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layer_output[i][-1])
+                    self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layers[-1].output[i])
                     batch_loss += self.loss_values[i][0].value
                     self.loss_values[i][0].backward()
-                
+
                 # Add regularization gradients BEFORE weight update
                 if self.l1_lambda > 0 or self.l2_lambda > 0:
-                    for j in range(len(self.weights)):
-                        for k in range(len(self.weights[j])):
-                            for l in range(len(self.weights[j][k])):
-                                w = self.weights[j][k][l]
+                    for j, _ in enumerate(self.layers):
+                        for k, _ in enumerate(self.layers[j].weights):
+                            for l, _ in enumerate(self.layers[j].weights[k]):
+                                w = self.layers[j].weights[k][l]
                                 # L1 regularization gradient
                                 if self.l1_lambda > 0:
                                     w.grad += (self.l1_lambda * np.sign(w.value)) / batch_size
@@ -428,20 +389,20 @@ class FFNN:
 
                  # Update weights with regularization
                 if self.l1_lambda > 0 or self.l2_lambda > 0:
-                    for j, _ in enumerate(self.weights):
-                        for k in range(len(self.weights[j])):
-                            for l in range(len(self.weights[j][k])):
-                                self.weights[j][k][l].value -= (self.weights[j][k][l].grad * self.learning_rate) / batch_size
+                    for j, _ in enumerate(self.layers):
+                        for k, _ in enumerate(self.layers[j].weights):
+                            for l, _ in enumerate(self.layers[j].weights[k]):
+                                self.layers[j].weights[k][l].value -= (self.layers[j].weights[k][l].grad * self.learning_rate) / batch_size
                 else:  # update weights without regularization
-                    for j, _ in enumerate(self.weights): # Per layer
-                        for k in range(len(self.weights[j])): # Per baris
-                            for l in range(len(self.weights[j][k])): # Per kolom
-                                self.weights[j][k][l].value -= self.weights[j][k][l].grad * self.learning_rate
+                    for j, _ in enumerate(self.layers): # Per layer
+                        for k, _ in enumerate(self.layers[j].weights): # Per baris
+                            for l, _ in enumerate(self.layers[j].weights[k]): # Per kolom
+                                self.layers[j].weights[k][l].value -= self.layers[j].weights[k][l].grad * self.learning_rate
                                 # print("Update:", self.weights[j][k][l])
 
-                for j, _ in enumerate(self.bias):
-                    for k in range(len(self.bias[j])):
-                        self.bias[j][k][0].value -= self.bias[j][k][0].grad * self.learning_rate
+                for j, _ in enumerate(self.layers):
+                    for k, _ in enumerate(self.layers[j].bias):
+                        self.layers[j].bias[k][0].value -= self.layers[j].bias[k][0].grad * self.learning_rate
 
                 epoch_loss += batch_loss
                 batch_count += 1
@@ -455,7 +416,7 @@ class FFNN:
 
         if self.verbose:
             print(f"\nFinal Average Loss: {total_loss/(num*self.epochs):.4f}")
-    
+
     def predict_single(self, x):
         """
         Predict target of a single input.
@@ -465,11 +426,11 @@ class FFNN:
             x = x.reshape(-1, 1)
 
         layer_result = x  # Start with input
-        for j in range(len(self.layers)):
+        for j in range(len(self.num_layers)):
             if j == 0:
-                layer_result = np.dot(self.weights[0], layer_result) + self.bias[0]
+                layer_result = np.dot(self.layers[0].weights, layer_result) + self.layers[0].bias
             else:
-                layer_result = np.dot(self.weights[j], layer_result) + self.bias[j]
+                layer_result = np.dot(self.layers[j].weights, layer_result) + self.layers[j].bias
             
             layer_result = self.activate(self.activations[j], layer_result)
 
@@ -490,7 +451,7 @@ class FFNN:
         Predict class labels for multiple inputs.
         """
         x = np.array(x)
-        
+
         if x.ndim == 1:
             return self.predict_single(x)
 
