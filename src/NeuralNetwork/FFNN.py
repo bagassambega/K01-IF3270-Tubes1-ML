@@ -3,6 +3,7 @@ from tqdm import tqdm
 from NeuralNetwork.Accuracy import *
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
 from NeuralNetwork.WeightGenerator import (
     zero_initialization,
     random_uniform_distribution,
@@ -141,13 +142,17 @@ class FFNN:
             # Activation akan ada di hidden layer 1 dan output layer saja
             assert len(activations) == len(layers), "Number of activations must be the same \
                 with number of layers"
+            for i, act in enumerate(activations):
+                if act == "softmax" and i != len(layers) - 1:
+                    raise ValueError("Can't use softmax except in last layer")
             for act in activations:
-                assert act in ["relu", "tanh", "sigmoid", "linear"], f"No activation {act} found"
+                assert act in ["relu", "tanh", "sigmoid", "linear", "softmax"], f"No activation {act} found"
             self.activations = activations
         else:
-            self.activations = [activations] * len(layers)
+            assert activations == "softmax", "Cannot using softmax in all layers. Use in last layer only"
             assert activations in ["relu", "tanh", "sigmoid", "linear"], f"No activation \
                 {activations} found"
+            self.activations = [activations] * len(layers)
 
         # Initialize weights
         assert weight_method in ["normal", "uniform", "zero", "xavier", "he", "one"], f"No \
@@ -321,6 +326,7 @@ class FFNN:
 
         return softmax_probs
 
+    
     def fit(self):
         """
         Train model with progress bar
@@ -328,6 +334,9 @@ class FFNN:
         num = len(self.x)
         indices = np.arange(num)
         total_loss = 0
+
+        self.training_losses = []
+        self.validation_losses = []  # Only if you are calculating validation loss
 
         # One-hot encode the labels
         one_hot_y = np.zeros((num, 10))
@@ -413,13 +422,36 @@ class FFNN:
                 batch_pbar.set_postfix({"Batch Loss": batch_loss/len(batch_indices)})
 
                 self._zero_gradients()
-
+            
             avg_epoch_loss = epoch_loss / num
+            self.training_losses.append(avg_epoch_loss)  # Store training loss for plotting
+
             epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
             total_loss += epoch_loss
 
+            # if self.verbose:
+            #     print(f"\nEpoch-{i}")
+            #     print(f"Training Loss: {avg_epoch_loss}")
+            #     print(f"Validation Loss: {val_loss}")
+
         if self.verbose:
             print(f"\nFinal Average Loss: {total_loss/(num*self.epochs):.4f}")
+    
+        self.plot_loss()
+
+    def plot_loss(self):
+        plt.figure(figsize=(8, 5))
+        plt.plot(range(1, len(self.training_losses) + 1), self.training_losses, label="Training Loss", marker='o')
+        
+        if self.validation_losses:
+            plt.plot(range(1, len(self.validation_losses) + 1), self.validation_losses, label="Validation Loss", marker='s')
+
+        plt.xlabel("Epochs")
+        plt.ylabel("Loss")
+        plt.title("Training and Validation Loss")
+        plt.legend()
+        plt.grid()
+        plt.show()
 
     def predict_single(self, x):
         """

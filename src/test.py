@@ -47,11 +47,12 @@ if X is not None:
 X = np.array(X, dtype=np.float32) / 255.0
 y = np.array([float(y[i]) for i in range(len(y))])
 
-temp_x = X[0:1000]
+temp_x = X[0:100]
+temp_y = y[0:100]
+temp_x_val = X[100:200]
+temp_y_val = y[100:200]
 
-temp_y = y[0:1000]
-
-ffnn = FFNN(x=temp_x, y=temp_y, layers=[5, 5], loss_function="mse", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "linear"], verbose=True, epochs=2, seed=42)
+ffnn = FFNN(x=temp_x, y=temp_y, layers=[5], loss_function="mse", weight_method="xavier", learning_rate=0.1, activations=["relu", "softmax"], verbose=True, epochs=1, seed=42)
 
 ffnn.fit()
 # for i, weights in enumerate(ffnn.weights):
