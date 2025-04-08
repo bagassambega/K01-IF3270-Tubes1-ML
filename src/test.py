@@ -5,7 +5,7 @@ from NeuralNetwork.Autograd import Scalar
 from NeuralNetwork.Visualize import draw_dot
 import numpy as np
 from NeuralNetwork.WeightGenerator import normal_distribution
-from NeuralNetwork.FFNN import FFNN
+from NeuralNetwork.FFNN import *
 
 def get_dataset(name: str = 'mnist_784'):
     """Get dataset from OpenML, checking local data folder first.
@@ -47,11 +47,11 @@ if X is not None:
 X = np.array(X, dtype=np.float32) / 255.0
 y = np.array([float(y[i]) for i in range(len(y))])
 
-temp_x = X[0:2000]
+temp_x = X[0:1000]
 
-temp_y = y[0:2000]
+temp_y = y[0:1000]
 
-ffnn = FFNN(x=temp_x, y=temp_y, layers=[2, 3], loss_function="mse", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "linear"], verbose=True, epochs=5, seed=42)
+ffnn = FFNN(x=temp_x, y=temp_y, layers=[5, 5], loss_function="mse", weight_method="xavier", learning_rate=0.1, activations=["relu", "relu", "linear"], verbose=True, epochs=2, seed=42)
 
 ffnn.fit()
 # for i, weights in enumerate(ffnn.weights):
@@ -62,3 +62,6 @@ real = y[-20:]
 
 print("Prediction: ", ffnn.predict(test))
 print("Real: ", real)
+
+
+print("Accuracy: ", ffnn.accuracy(test, real, "accuracy"))
