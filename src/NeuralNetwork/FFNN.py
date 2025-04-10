@@ -24,6 +24,7 @@ class Layer:
         """
         Initialize a single layer of the neural network.
         Args:
+            data_length (int): Number of rows in the epochs
             input_dim (int): Number of input neurons.
             output_dim (int): Number of output neurons.
             activation (str): Activation function for the layer.
