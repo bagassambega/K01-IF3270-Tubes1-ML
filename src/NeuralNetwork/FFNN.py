@@ -71,8 +71,21 @@ class FFNN:
         assert x.shape[0] == y.shape[0], f"Number of x row ({x.shape}) should be same with\
             number of row in y ({y.shape})"
 
-        self.x = np.array([[Scalar(v) for v in row] for row in x])
-        self.y = np.array([Scalar(v) for v in y])
+        # Convert input data to array of Scalars
+        x_scalar = np.array([[Scalar(v) for v in row] for row in x])
+        y_scalar = np.array([Scalar(v) for v in y])
+
+        # Shuffle indices
+        num_samples = len(x_scalar)
+        indices = np.random.permutation(num_samples)
+        split_idx = int(0.8 * num_samples)
+        train_idx, val_idx = indices[:split_idx], indices[split_idx:]
+
+        # Split into train and validation
+        self.x_train = x_scalar[train_idx]
+        self.y_train = y_scalar[train_idx]
+        self.x_val = x_scalar[val_idx]
+        self.y_val = y_scalar[val_idx]
 
         # Check on layers
         for i, _ in enumerate(layers):
@@ -231,13 +244,48 @@ class FFNN:
         softmax_probs = exp_logits / np.sum(exp_logits)  # Normalize
 
         return softmax_probs
+    
+    def compute_validation_loss(self, x_val, y_val):
+        num_val = len(x_val)
+        val_loss = 0
+
+        # One-hot encode validation labels
+        one_hot_y_val = np.zeros((num_val, 10))
+        for idx, val in enumerate(y_val):
+            one_hot_y_val[idx][val.value.astype(int)] = 1
+
+        for i in range(num_val):
+            # Forward pass for validation (no backward)
+            for j in range(len(self.num_layers)):
+                if j == 0:
+                    self.layers[j].net_input[i] = self.net(self.layers[j].weights, np.array([x_val[i]]).reshape(-1, 1), self.layers[j].bias)
+                else:
+                    self.layers[j].net_input[i] = self.net(self.layers[j].weights, self.layers[j - 1].output[i], self.layers[j].bias)
+
+                self.layers[j].output[i] = self.activate(self.activations[j], self.layers[j].net_input[i])
+
+            if self.activations[-1] == "softmax":
+                # Apply softmax to final layer
+                softmax_probs = self.softmax(self.layers[-1].output[i])
+                for idx, val in enumerate(self.layers[-1].output[i]):
+                    self.layers[-1].output[i][idx][0].value = softmax_probs[idx]
+
+                # Compute categorical cross-entropy loss
+                loss_value = self.loss(self.loss_function, one_hot_y_val[i], self.layers[-1].output[i])
+                val_loss += loss_value[0].value
+            else:
+                # If not softmax output
+                loss_value = self.loss(self.loss_function, [y_val[i]], self.layers[-1].output[i][0])
+                val_loss += loss_value.value
+
+        return val_loss / num_val
 
 
     def fit(self):
         """
         Train model with progress bar
         """
-        num = len(self.x)
+        num = len(self.x_train)
         indices = np.arange(num)
         total_loss = 0
 
@@ -247,7 +295,7 @@ class FFNN:
         # One-hot encode the labels
         one_hot_y = np.zeros((num, 10))
 
-        for idx, val in enumerate(self.y):
+        for idx, val in enumerate(self.y_train):
             one_hot_y[idx][val.value.astype(int)] = 1
 
         # Create progress bar for epochs
