@@ -50,10 +50,21 @@ y = np.array([float(y[i]) for i in range(len(y))])
 
 temp_x = X[0:1000]
 temp_y = y[0:1000]
-temp_x_val = X[100:200]
-temp_y_val = y[100:200]
+temp_x_val = X[1000:1100]
+temp_y_val = y[1000:1100]
 
-ffnn = FFNN(x=temp_x, y=temp_y, x_val=temp_x_val, y_val=temp_y_val, total_layers=[5], loss_function="mse", weight_method="xa", learning_rate=0.1, activations=["relu", "softmax"], verbose=True, epochs=2, seed=42)
+ffnn = FFNN(x=temp_x, 
+            y=temp_y, 
+            x_val=temp_x_val, 
+            y_val=temp_y_val, 
+            total_layers=[5, 5], 
+            loss_function="mse", 
+            weight_method="xavier", 
+            learning_rate=0.01, 
+            activations=["relu", "relu", "softmax"], 
+            verbose=True, 
+            epochs=2, 
+            seed=42)
 
 ffnn.fit()
 # for i, weights in enumerate(ffnn.weights):
@@ -66,4 +77,4 @@ result = ffnn.predict(test)
 print("Prediction: ", result)
 print("Real: ", real)
 print(f"FFNN accuracy: {ffnn.accuracy(test, real, 'accuracy')}")
-ffnn.save_model("model1.pkl")
+# ffnn.save_model("model1.pkl")

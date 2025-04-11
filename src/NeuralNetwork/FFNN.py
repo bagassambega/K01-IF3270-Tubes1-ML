@@ -137,9 +137,9 @@ class FFNN:
         if Layers is not None:
             self.layers = Layers
         else:
-            self.layers = [Layer(input_dim=x.shape[1], output_dim=total_layers[0], activation=self.activations[0], weight_method=weight_method, seed=seed)]
+            self.layers = [Layer(input_dim=x.shape[1], output_dim=total_layers[0], activation=self.activations[0], weight_method=weight_method, seed=seed, mean=mean, variance=variance, upper_bound=upper_bound, lower_bound=lower_bound)]
             for i in range(1, len(total_layers)):
-                self.layers.append(Layer(input_dim=total_layers[i-1], output_dim=total_layers[i], activation=self.activations[i], weight_method=weight_method, seed=seed)) 
+                self.layers.append(Layer(input_dim=total_layers[i-1], output_dim=total_layers[i], activation=self.activations[i], weight_method=weight_method, seed=seed, mean=mean, variance=variance, upper_bound=upper_bound, lower_bound=lower_bound)) 
         # Loss value for each row of dataset
 
         # Verbose
