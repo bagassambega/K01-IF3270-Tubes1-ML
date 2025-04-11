@@ -37,7 +37,8 @@ class FFNN:
         verbose: Optional[bool] = False,
         randomize: Optional[bool] = False,
         l1_lambda: float = 0.0,
-        l2_lambda: float = 0.0
+        l2_lambda: float = 0.0, 
+        view_weight: bool = False, 
     ):
 
         """
@@ -138,6 +139,7 @@ class FFNN:
 
         # Verbose
         self.verbose: bool = verbose
+        self.view_weight: bool = view_weight
 
 
 
@@ -340,7 +342,8 @@ class FFNN:
                     for b in layer.bias:
                         b[0].value -= self.learning_rate * b[0].grad
 
-                    layer.weights_history.append(layer.weights)
+                    if self.view_weight:
+                        layer.weights_history.append(layer.weights)
                     
 
                 # Calculate average batch loss
@@ -361,7 +364,8 @@ class FFNN:
             epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
 
         self.plot_loss()
-        self.plot_weights()
+        if self.view_weight:
+            self.plot_weights()
 
     def compute_validation_loss(self, X_val, y_val):
         result = []
