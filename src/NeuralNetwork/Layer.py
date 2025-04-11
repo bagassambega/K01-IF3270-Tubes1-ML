@@ -30,28 +30,41 @@ class Layer:
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.activation = activation
-        self.weights, self.bias = self.initialize_weights(weight_method, seed)
         self.mean = mean
         self.variance = variance
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+        self.weights_history = []
+        self.weights, self.bias = self.initialize_weights(weight_method, seed)
 
     def initialize_weights(self, method: str, seed: Optional[int]):
         """
         Initialize weights and biases based on the specified method.
         """
         if method == "zero":
-            return zero_initialization(row_dim=self.output_dim, col_dim=self.input_dim)
+            result = zero_initialization(row_dim=self.output_dim, col_dim=self.input_dim)
+            self.weights_history.append(result)
+            return result
         elif method == "one":
-            return one_initialization(row_dim=self.output_dim, col_dim=self.input_dim)
+            result = one_initialization(row_dim=self.output_dim, col_dim=self.input_dim)
+            self.weights_history.append(result)
+            return result
         elif method == "normal":
-            return normal_distribution(mean=self.mean, variance=self.variance, row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+            result = normal_distribution(mean=self.mean, variance=self.variance, row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+            self.weights_history.append(result)
+            return result
         elif method == "xavier":
-            return xavier_initialization(row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+            result = xavier_initialization(row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+            self.weights_history.append(result)
+            return result
         elif method == "he":
-            return he_initialization(row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+            result = he_initialization(row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+            self.weights_history.append(result)
+            return result
         else:  # Default to uniform distribution
-            return random_uniform_distribution(lower_bound=-1, upper_bound=1, row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+            result = random_uniform_distribution(lower_bound=-1, upper_bound=1, row_dim=self.output_dim, col_dim=self.input_dim, seed=seed)
+            self.weights_history.append(result)
+            return result
 
 
     def activate(self, val):

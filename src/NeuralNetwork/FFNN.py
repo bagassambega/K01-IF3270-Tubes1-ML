@@ -20,6 +20,8 @@ class FFNN:
         self,
         x: np.ndarray | List,
         y: np.ndarray | List,
+        x_val: Optional[np.ndarray | List],
+        y_val: Optional[np.ndarray | List],
         layers: List[int],
         activations: List[str] | str = "relu",
         weight_method: str = "uniform",
@@ -110,6 +112,8 @@ class FFNN:
         self.seed = seed
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+        self.x_val = x_val
+        self.y_val = y_val
 
         # Initialize Regularization
         self.l1_lambda = l1_lambda
@@ -186,7 +190,6 @@ class FFNN:
             loss += self.l2_lambda * l2_loss
 
         return loss
-
 
     def _zero_gradients(self):
         """Reset all gradients to zero before processing a new batch"""
@@ -337,6 +340,9 @@ class FFNN:
                     for b in layer.bias:
                         b[0].value -= self.learning_rate * b[0].grad
 
+                    layer.weights_history.append(layer.weights)
+                    
+
                 # Calculate average batch loss
                 avg_batch_loss = batch_loss / batch_size
                 epoch_loss += avg_batch_loss
@@ -345,9 +351,54 @@ class FFNN:
             # Calculate average epoch loss
             avg_epoch_loss = epoch_loss / (num / self.batch_size)
             self.training_losses.append(avg_epoch_loss)
+
+            #calculate validation loss 
+            if self.x_val is not None and self.y_val is not None: 
+                val_loss = self.compute_validation_loss(self.x_val, self.y_val)
+                self.validation_losses.append(val_loss)
+                epoch_pbar.set_postfix({"Validation Loss": val_loss})
+
             epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
 
         self.plot_loss()
+        self.plot_weights()
+
+    def compute_validation_loss(self, X_val, y_val):
+        result = []
+        y_true = []
+        for i in range(len(X_val)): 
+            result.append(Scalar(self.predict_single(X_val[i]))) 
+            y_true.append(Scalar(y_val[i]))
+        return self.loss(self.loss_function, y_true, result).value
+
+    def plot_weights(self):
+        # Iterate over each layer and create a separate plot (window) for each layer's weight distribution.
+        for idx, layer in enumerate(self.layers):
+            # Flatten the weights: from list of list of lists to a single list.
+            flattened = []
+            for data in layer.weights_history:
+                for neuron in data:
+                    for weights in neuron:
+                        if isinstance(weights, list):
+                            for w in weights:
+                                flattened.append(w.value)
+                        else:
+                            flattened.append(weights.value)
+            
+            # Create a new figure for each layer.
+            plt.figure(figsize=(8, 6))
+            
+            # Since flattened is just one list of numbers, we can create a boxplot out of it.
+            # We wrap flattened in a list to satisfy plt.boxplot's input format.
+            plt.boxplot(flattened, patch_artist=True)
+            
+            plt.title(f"Weight Distribution for Layer {idx + 1}")
+            plt.xlabel("Weight Distribution")
+            plt.ylabel("Weight Value")
+            plt.grid(True)
+            
+            # Display the plot; this will open a new window if you run it in an interactive environment.
+            plt.show()
 
     def plot_loss(self):
         """
@@ -355,7 +406,7 @@ class FFNN:
         """
         plt.figure(figsize=(8, 5))
         plt.plot(range(1, len(self.training_losses) + 1), self.training_losses, label="Training Loss", marker='o')
-
+            
         if self.validation_losses:
             plt.plot(range(1, len(self.validation_losses) + 1), self.validation_losses, label="Validation Loss", marker='s')
 
@@ -380,8 +431,7 @@ class FFNN:
                 layer_result = np.dot(self.layers[0].weights, layer_result) + self.layers[0].bias
             else:
                 layer_result = np.dot(self.layers[j].weights, layer_result) + self.layers[j].bias
-            
-            layer_result = self.activate(self.activations[j], layer_result)
+            layer_result = self.layers[j].activate(layer_result)
 
         ### DEBUGING
         # print(f"layer_result:\n{layer_result}")
