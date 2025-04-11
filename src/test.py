@@ -1,4 +1,5 @@
 from sklearn.datasets import fetch_openml
+
 import os
 import joblib  # For saving and loading the dataset
 from NeuralNetwork.Autograd import Scalar
@@ -47,12 +48,12 @@ if X is not None:
 X = np.array(X, dtype=np.float32) / 255.0
 y = np.array([float(y[i]) for i in range(len(y))])
 
-temp_x = X[0:10000]
-temp_y = y[0:10000]
+temp_x = X[0:1000]
+temp_y = y[0:1000]
 temp_x_val = X[100:200]
 temp_y_val = y[100:200]
 
-ffnn = FFNN(x=temp_x, y=temp_y, x_val=temp_x_val, y_val=temp_y_val, layers=[5], loss_function="mse", weight_method="xavier", learning_rate=0.1, activations=["relu", "softmax"], verbose=True, epochs=2, seed=42)
+ffnn = FFNN(x=temp_x, y=temp_y, x_val=temp_x_val, y_val=temp_y_val, total_layers=[5], loss_function="mse", weight_method="xa", learning_rate=0.1, activations=["relu", "softmax"], verbose=True, epochs=2, seed=42)
 
 ffnn.fit()
 # for i, weights in enumerate(ffnn.weights):
@@ -61,8 +62,8 @@ test = X[-20:]
 real = y[-20:]
 
 
-print("Prediction: ", ffnn.predict(test))
+result = ffnn.predict(test)
+print("Prediction: ", result)
 print("Real: ", real)
+print(f"FFNN accuracy: {ffnn.accuracy(test, real, 'accuracy')}")
 ffnn.save_model("model1.pkl")
-
-print("Accuracy: ", ffnn.accuracy(test, real, "accuracy"))
