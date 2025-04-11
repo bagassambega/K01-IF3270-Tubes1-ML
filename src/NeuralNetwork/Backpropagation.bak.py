@@ -112,6 +112,9 @@ class Backpropagation:
                 print(f"Epoch {epoch+1}/{epochs} - loss: {epoch_loss:.4f}")
         return history
 
+    """
+    debugging purpose 
+    """
     def print_parameters(self):
         for idx, layer in enumerate(self.layers):
             if hasattr(layer, 'weights'):
