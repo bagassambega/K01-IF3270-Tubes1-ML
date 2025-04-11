@@ -226,7 +226,7 @@ class FFNN:
 
         return softmax_probs
 
-    
+
     def fit(self):
         """
         Train model with progress bar
@@ -270,27 +270,39 @@ class FFNN:
 
                 self._zero_gradients()
 
+                # current_input = self.x[batch_indices]
+                # batch_y = one_hot_y[batch_indices]
+
+                # for i, x in enumerate(current_input):
+                #     current_input[i] = x.reshape(-1, 1)
+                
+                # for layer in self.layers:
+                #     net, output = layer.forward(current_input)
+                #     layer_net_inputs.append(net)
+                #     layer_outputs.append(output)
+                #     current_input = output
+
+
                 for i in batch_indices:
                     x_i = self.x[i]
                     y_true = one_hot_y[i]
 
-                    layer_net_inputs = []
-                    layer_outputs = []
+                    layer_outputs = None
+
                     current_input = x_i.reshape(-1, 1)
 
                     for layer in self.layers:
-                        net, output = layer.forward(current_input)
-                        layer_net_inputs.append(net)
-                        layer_outputs.append(output)
+                        output = layer.forward(current_input)
+                        layer_outputs = output
                         current_input = output
 
                     # Apply softmax to the output layer
-                    softmax_probs = self.softmax(layer_outputs[-1])
-                    for idx, val in enumerate(layer_outputs[-1]):
+                    softmax_probs = self.softmax(layer_outputs)
+                    for idx, val in enumerate(layer_outputs):
                         val[0].value = softmax_probs[idx]
 
                     # Calculate loss
-                    loss = self.loss(self.loss_function, y_true, layer_outputs[-1])
+                    loss = self.loss(self.loss_function, y_true, layer_outputs)
                     for l in loss:
                         batch_loss += l.value
                         
@@ -343,7 +355,7 @@ class FFNN:
         """
         plt.figure(figsize=(8, 5))
         plt.plot(range(1, len(self.training_losses) + 1), self.training_losses, label="Training Loss", marker='o')
-        
+
         if self.validation_losses:
             plt.plot(range(1, len(self.validation_losses) + 1), self.validation_losses, label="Validation Loss", marker='s')
 

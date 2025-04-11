@@ -72,4 +72,4 @@ class Layer:
         """Compute net input and activated output for a given input x."""
         net = np.dot(self.weights, x) + self.bias
         activated = self.activate(net)
-        return net, activated
+        return activated
