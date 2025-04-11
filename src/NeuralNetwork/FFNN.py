@@ -1,7 +1,7 @@
 from typing import List, Optional
+import pickle
 from tqdm import tqdm
 import numpy as np
-import pickle
 import matplotlib.pyplot as plt
 from NeuralNetwork.Accuracy import (
     accuracy,
@@ -127,11 +127,10 @@ class FFNN:
         self.randomize = randomize
 
         # Initiate network
-        self.layers = [Layer(data_length=x.shape[0], input_dim=x.shape[1], output_dim=layers[0], activation=self.activations[0], weight_method=weight_method, seed=seed)]
+        self.layers = [Layer(input_dim=x.shape[1], output_dim=layers[0], activation=self.activations[0], weight_method=weight_method, seed=seed)]
         for i in range(1, len(layers)):
-            self.layers.append(Layer(data_length=x.shape[0], input_dim=layers[i-1], output_dim=layers[i], activation=self.activations[i], weight_method=weight_method, seed=seed)) 
+            self.layers.append(Layer(input_dim=layers[i-1], output_dim=layers[i], activation=self.activations[i], weight_method=weight_method, seed=seed)) 
         # Loss value for each row of dataset
-        self.loss_values = [Scalar(0) for _ in range(x.shape[0])]
 
         # Verbose
         self.verbose: bool = verbose
@@ -150,45 +149,10 @@ class FFNN:
             _type_: _description_
         """
         # if i == 0:
-        #     # Perlu di-transpose karena nilai yang diambil dari dataset akan sebesar 1 x num_feature
+        #     Perlu di-transpose karena nilai yang diambil dari dataset akan sebesar 1 x num_feature
         #     return np.dot(weights, np.array(inputs, dtype=object).reshape(-1, 1)) + bias
         # else:
         return np.dot(weights, inputs) + bias
-
-
-    def activate(self, activation: str, val) -> Scalar | np.ndarray | List:
-        """
-        Activation function
-
-        Args:
-            activation (str): activation method function (function)
-            val (): value
-
-        Returns:
-            Scalar: _description_
-        """
-        if not isinstance(val, Scalar):
-            for i, v in enumerate(val):
-                # Menggunakan indeks 0 karena matriks nantinya berukuran n x 1,
-                # dengan 1 adalah array juga
-                if activation == "relu":
-                    val[i] = v[0].relu()
-                elif activation == "sigmoid":
-                    val[i] =  v[0].sigmoid()
-                elif activation == "tanh":
-                    val[i] = v[0].tanh()
-                else:
-                    val[i] = v[0].linear()
-            return val
-        else:
-            if activation == "relu":
-                return val.relu()
-            elif activation == "sigmoid":
-                return val.sigmoid()
-            elif activation == "tanh":
-                return val.tanh()
-            else:
-                return val.linear()
 
 
     def loss(self, loss_method: str, y_true: List[Scalar], y_pred: List[Scalar]) -> Scalar:
@@ -302,76 +266,74 @@ class FFNN:
                 batch_indices = indices[batch_start:batch_end]
                 batch_size = len(batch_indices)
                 batch_loss = 0
-
-                for i in batch_indices:
-                    # Forward pass
-                    for j in range(len(self.num_layers)):
-                        if j == 0:
-                            self.layers[j].net_input[i] = self.net(self.layers[0].weights, np.array([self.x[i]]).reshape(-1,1), self.layers[0].bias)
-                        else:
-                            self.layers[j].net_input[i] = self.net(self.layers[j].weights, self.layers[j-1].output[i], self.layers[j].bias)
-                        self.layers[j].output[i] = self.activate(self.activations[j], self.layers[j].net_input[i])
-
-                    # Apply softmax to the output layer
-                    softmax_probs = self.softmax(self.layers[-1].output[i])
-                    for idx, val in enumerate(self.layers[-1].output[i]):
-                        self.layers[-1].output[i][idx][0].value = softmax_probs[idx]
-
-                    # Calculate loss
-                    self.loss_values[i] = self.loss(self.loss_function, one_hot_y[i], self.layers[-1].output[i])
-                    batch_loss += self.loss_values[i][0].value
-                    self.loss_values[i][0].backward()
-
-                # Add regularization gradients BEFORE weight update
-                if self.l1_lambda > 0 or self.l2_lambda > 0:
-                    for j, _ in enumerate(self.layers):
-                        for k, _ in enumerate(self.layers[j].weights):
-                            for l, _ in enumerate(self.layers[j].weights[k]):
-                                w = self.layers[j].weights[k][l]
-                                # L1 regularization gradient
-                                if self.l1_lambda > 0:
-                                    w.grad += (self.l1_lambda * np.sign(w.value)) / batch_size
-                                # L2 regularization gradient
-                                if self.l2_lambda > 0:
-                                    w.grad += (self.l2_lambda * w.value) / batch_size
-
-
-                 # Update weights with regularization
-                if self.l1_lambda > 0 or self.l2_lambda > 0:
-                    for j, _ in enumerate(self.layers):
-                        for k, _ in enumerate(self.layers[j].weights):
-                            for l, _ in enumerate(self.layers[j].weights[k]):
-                                self.layers[j].weights[k][l].value -= (self.layers[j].weights[k][l].grad * self.learning_rate) / batch_size
-                else:  # update weights without regularization
-                    for j, _ in enumerate(self.layers): # Per layer
-                        for k, _ in enumerate(self.layers[j].weights): # Per baris
-                            for l, _ in enumerate(self.layers[j].weights[k]): # Per kolom
-                                self.layers[j].weights[k][l].value -= self.layers[j].weights[k][l].grad * self.learning_rate
-                                # print("Update:", self.weights[j][k][l])
-
-                for j, _ in enumerate(self.layers):
-                    for k, _ in enumerate(self.layers[j].bias):
-                        self.layers[j].bias[k][0].value -= self.layers[j].bias[k][0].grad * self.learning_rate
-
-                epoch_loss += batch_loss
-                batch_count += 1
-                batch_pbar.set_postfix({"Batch Loss": batch_loss/len(batch_indices)})
+                total_grade = []
 
                 self._zero_gradients()
-            
-            avg_epoch_loss = epoch_loss / num
-            self.training_losses.append(avg_epoch_loss)  # Store training loss for plotting
 
+                for i in batch_indices:
+                    x_i = self.x[i]
+                    y_true = one_hot_y[i]
+
+                    layer_net_inputs = []
+                    layer_outputs = []
+                    current_input = x_i.reshape(-1, 1)
+
+                    for layer in self.layers:
+                        net, output = layer.forward(current_input)
+                        layer_net_inputs.append(net)
+                        layer_outputs.append(output)
+                        current_input = output
+
+                    # Apply softmax to the output layer
+                    softmax_probs = self.softmax(layer_outputs[-1])
+                    for idx, val in enumerate(layer_outputs[-1]):
+                        val[0].value = softmax_probs[idx]
+
+                    # Calculate loss
+                    loss = self.loss(self.loss_function, y_true, layer_outputs[-1])
+                    for l in loss:
+                        batch_loss += l.value
+                        
+                    loss[-1].backward()
+
+                # Average gradients over the batch
+                batch_size = len(batch_indices)
+                for layer in self.layers:
+                    for neuron in layer.weights:
+                        for w in neuron:
+                            w.grad /= batch_size
+                    for b in layer.bias:
+                        b[0].grad /= batch_size
+
+                # Apply regularization gradients
+                if self.l1_lambda > 0 or self.l2_lambda > 0:
+                    for layer in self.layers:
+                        for neuron in layer.weights:
+                            for w in neuron:
+                                if self.l1_lambda > 0:
+                                    w.grad += self.l1_lambda * np.sign(w.value) / batch_size
+                                if self.l2_lambda > 0:
+                                    w.grad += self.l2_lambda * w.value / batch_size
+
+                # Update weights and biases
+                for layer in self.layers:
+                    # Update weights
+                    for neuron in layer.weights:
+                        for w in neuron:
+                            w.value -= self.learning_rate * w.grad
+                    # Update biases
+                    for b in layer.bias:
+                        b[0].value -= self.learning_rate * b[0].grad
+
+                # Calculate average batch loss
+                avg_batch_loss = batch_loss / batch_size
+                epoch_loss += avg_batch_loss
+                batch_pbar.set_postfix({"Batch Loss": avg_batch_loss})
+
+            # Calculate average epoch loss
+            avg_epoch_loss = epoch_loss / (num / self.batch_size)
+            self.training_losses.append(avg_epoch_loss)
             epoch_pbar.set_postfix({"Epoch Loss": avg_epoch_loss})
-            total_loss += epoch_loss
-
-            # if self.verbose:
-            #     print(f"\nEpoch-{i}")
-            #     print(f"Training Loss: {avg_epoch_loss}")
-            #     print(f"Validation Loss: {val_loss}")
-
-        if self.verbose:
-            print(f"\nFinal Average Loss: {total_loss/(num*self.epochs):.4f}")
 
         self.plot_loss()
 

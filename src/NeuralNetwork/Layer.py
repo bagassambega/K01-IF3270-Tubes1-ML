@@ -1,6 +1,6 @@
 from typing import Optional
+import numpy as np
 
-from NeuralNetwork.Autograd import Scalar
 from NeuralNetwork.WeightGenerator import (
     zero_initialization,
     random_uniform_distribution,
@@ -15,7 +15,7 @@ class Layer:
     """
     Representation of a single layer
     """
-    def __init__(self, data_length: int, input_dim: int, output_dim: int, activation: str, weight_method: str = "uniform", seed: Optional[int] = None, mean: Optional[float] = None, variance: Optional[float] = 0
+    def __init__(self, input_dim: int, output_dim: int, activation: str, weight_method: str = "uniform", seed: Optional[int] = None, mean: Optional[float] = None, variance: Optional[float] = 0
                  , lower_bound: Optional[float] = None, upper_bound: Optional[float] = None):
         """
         Initialize a single layer of the neural network.
@@ -31,8 +31,6 @@ class Layer:
         self.output_dim = output_dim
         self.activation = activation
         self.weights, self.bias = self.initialize_weights(weight_method, seed)
-        self.net_input = [[Scalar(0) for _ in range(output_dim)] for _ in range(data_length)] # Array of net result in one layer, for all rows
-        self.output = [[Scalar(0) for _ in range(output_dim)] for _ in range(data_length)]     # Stores the activated output
         self.mean = mean
         self.variance = variance
         self.lower_bound = lower_bound
@@ -58,14 +56,20 @@ class Layer:
 
     def activate(self, val):
         """
-        Apply activation function to the input.
+        Apply activation function element-wise to a numpy array of Scalars.
         """
         if self.activation == "relu":
-            return val.relu()
+            # Apply ReLU to each Scalar in the array
+            return np.vectorize(lambda v: v.relu())(val)
         elif self.activation == "sigmoid":
-            return val.sigmoid()
+            return np.vectorize(lambda v: v.sigmoid())(val)
         elif self.activation == "tanh":
-            return val.tanh()
+            return np.vectorize(lambda v: v.tanh())(val)
         else:  # Linear activation
-            return val.linear()
+            return val  # No change needed for linear
 
+    def forward(self, x):
+        """Compute net input and activated output for a given input x."""
+        net = np.dot(self.weights, x) + self.bias
+        activated = self.activate(net)
+        return net, activated
