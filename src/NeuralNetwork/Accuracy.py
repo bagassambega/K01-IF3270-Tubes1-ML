@@ -2,7 +2,7 @@ import numpy as np
 
 def accuracy(y_true, y_pred) -> float:
     """ Compute accuracy between y_true and y_pred """
-    return int(round(y_pred)) == y_true
+    return int(round(y_pred)) == int(y_true)
 
 def f1_score(y_true, y_pred) -> float:
     """ Compute F1 score between y_true and y_pred """
