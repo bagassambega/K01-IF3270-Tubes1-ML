@@ -1,5 +1,6 @@
 from typing import List, Optional
 import pickle
+import dill
 from tqdm import tqdm
 import numpy as np
 
@@ -23,9 +24,9 @@ class FFNN:
         y: np.ndarray | List,
         x_val: Optional[np.ndarray | List],
         y_val: Optional[np.ndarray | List],
-        layers: List[int],
+        total_layers: List[int],
         activations: List[str] | str = "relu",
-        weight_method: str = "uniform",
+        weight_method: str = "one",
         loss_function: str = "mse",
         batch_size: int = 1,
         epochs: int = 5,
@@ -40,6 +41,7 @@ class FFNN:
         l1_lambda: float = 0.0,
         l2_lambda: float = 0.0, 
         view_weight: bool = False, 
+        Layers: Optional[List[Layer]] = None, 
     ):
 
         """
@@ -88,18 +90,18 @@ class FFNN:
         self.y_val = y_scalar[val_idx]
 
         # Check on layers
-        for i, _ in enumerate(layers):
-            assert layers[i] > 0, f"Number of neurons {i} must be bigger than 0 ({layers[i]})"
-        layers.append(10) # From last hidden layer to output layer. Output layer must be 1
-        self.num_layers = layers # All layers: hidden layer + output layer
+        for i, _ in enumerate(total_layers):
+            assert total_layers[i] > 0, f"Number of neurons {i} must be bigger than 0 ({total_layers[i]})"
+        total_layers.append(10) # From last hidden layer to output layer. Output layer must be 1
+        self.total_layers = total_layers # All layers: hidden layer + output layer
 
         if isinstance(activations, List):
             # Misal ada 3 layer (termasuk input & output)
             # Activation akan ada di hidden layer 1 dan output layer saja
-            assert len(activations) == len(layers), "Number of activations must be the same \
+            assert len(activations) == len(total_layers), "Number of activations must be the same \
                 with number of layers"
             for i, act in enumerate(activations):
-                if act == "softmax" and i != len(layers) - 1:
+                if act == "softmax" and i != len(total_layers) - 1:
                     raise ValueError("Can't use softmax except in last layer")
             for act in activations:
                 assert act in ["relu", "tanh", "sigmoid", "linear", "softmax"], f"No activation {act} found"
@@ -108,7 +110,7 @@ class FFNN:
             assert activations == "softmax", "Cannot using softmax in all layers. Use in last layer only"
             assert activations in ["relu", "tanh", "sigmoid", "linear"], f"No activation \
                 {activations} found"
-            self.activations = [activations] * len(layers)
+            self.activations = [activations] * len(total_layers)
 
         # Initialize weights
         assert weight_method in ["normal", "uniform", "zero", "xavier", "he", "one"], f"No \
@@ -129,7 +131,7 @@ class FFNN:
         self.upper_bound = upper_bound
         self.x_val = x_val
         self.y_val = y_val
-
+        self.weight_method = weight_method
         # Initialize Regularization
         self.l1_lambda = l1_lambda
         self.l2_lambda = l2_lambda
@@ -146,13 +148,13 @@ class FFNN:
         self.randomize = randomize
 
         # Initiate network
-        self.layers = [Layer(input_dim=x.shape[1], output_dim=layers[0], activation=self.activations[0], weight_method=weight_method, seed=seed)]
-        for i in range(1, len(layers)):
-            self.layers.append(Layer(input_dim=layers[i-1], output_dim=layers[i], activation=self.activations[i], weight_method=weight_method, seed=seed)) 
-        
-        # Losses
-        self.training_losses = []
-        self.validation_losses = []  # Only if you are calculating validation loss
+        if Layers is not None:
+            self.layers = Layers
+        else:
+            self.layers = [Layer(input_dim=x.shape[1], output_dim=total_layers[0], activation=self.activations[0], weight_method=weight_method, seed=seed)]
+            for i in range(1, len(total_layers)):
+                self.layers.append(Layer(input_dim=total_layers[i-1], output_dim=total_layers[i], activation=self.activations[i], weight_method=weight_method, seed=seed)) 
+        # Loss value for each row of dataset
 
         # Verbose
         self.verbose: bool = verbose
@@ -200,13 +202,21 @@ class FFNN:
 
         # Add L1 regularization
         if self.l1_lambda > 0:
-            l1_loss = sum(abs(w) for layer in self.layers for neuron in layer.weights  for w in neuron)
-            loss += self.l1_lambda * l1_loss
+            l1_theta = sum(
+                    abs(w) for layer in self.layers 
+                    for neuron in layer.weights 
+                    for w in neuron
+                )   
+            loss = loss + self.l1_lambda * l1_theta
 
         # Add L2 regularization
         if self.l2_lambda > 0:
-            l2_loss = sum(w**2 for layer in self.layers for neuron in layer.weights for w in neuron)
-            loss += self.l2_lambda * l2_loss
+            l2_theta = sum(
+                    w**2 for layer in self.layers 
+                    for neuron in layer.weights 
+                    for w in neuron
+                )
+            loss += self.l2_lambda * l2_theta
 
         return loss
 
@@ -451,7 +461,7 @@ class FFNN:
             x = x.reshape(-1, 1)
 
         layer_result = x  # Start with input
-        for j in range(len(self.num_layers)):
+        for j in range(len(self.total_layers)):
             if j == 0:
                 layer_result = np.dot(self.layers[0].weights, layer_result) + self.layers[0].bias
             else:
@@ -489,12 +499,12 @@ class FFNN:
             filepath (str): Path to the file where the model will be saved
         """
         model_data = {
-            'x_train': self.x_train,
-            'y_train': self.y_train,
-            'layers': self.layers,
+            'x_train': self.x,
+            'y_train': self.y,
+            'x_val': self.x_val,
+            'y_val': self.y_val,
+            'total_layers': self.total_layers,
             'activations': self.activations,
-            'weights': self.weights,
-            'bias': self.bias,
             'loss_function': self.loss_function,
             'batch_size': self.batch_size,
             'epochs': self.epochs,
@@ -505,51 +515,87 @@ class FFNN:
             'upper_bound': self.upper_bound,
             'seed': self.seed,
             'verbose': self.verbose,
-            'randomize': self.randomize
+            'randomize': self.randomize,
+            'weight_method': self.weight_method, 
+            'l1_lambda': self.l1_lambda,
+            'l2_lambda': self.l2_lambda,
+            'view_weight': self.view_weight,
+            'Layers': self.layers,  # Save the layers
+
         }
 
         with open(filepath, 'wb') as f:
-            pickle.dump(model_data, f)
+            dill.dump(model_data, f)
 
     @classmethod
     def load_model(cls, filepath: str):
         """
-        Load a neural network model from a file using pickle.
+        Load a neural network model from a file using dill.
         Args:
             filepath (str): Path to the file containing the saved model
         Returns:
             FFNN: Reconstructed neural network model
         """
         with open(filepath, 'rb') as f:
-            model_data = pickle.load(f)
+            model_data = dill.load(f)  # Use dill.load instead of pickle.load
 
-    
-        x = model_data['x']
-        y = model_data['y']
-        layers = model_data['layers']
+        x = model_data['x_train']  # Adjust key names if needed
+        y = model_data['y_train']
+        x_val = model_data['x_val']
+        y_val = model_data['y_val']
+        total_layers = model_data['total_layers']
+        total_layers.pop()
         activations = model_data['activations']
-        
-      
+
         model = cls(
-            x_train=np.array([[v.value for v in row] for row in x]), 
-            y_train=np.array([v.value for v in y]),
-            layers=layers[:-1],  
+            x=np.array([[v.value for v in row] for row in x]),
+            y=np.array([v.value for v in y]),
+            x_val=np.array([[v for v in row] for row in x_val]),
+            y_val=np.array([v for v in y_val]),
+            total_layers=total_layers,
             activations=activations,
+            weight_method=model_data['weight_method'],  
+            loss_function=model_data['loss_function'],
             batch_size=model_data['batch_size'],
             epochs=model_data['epochs'],
             learning_rate=model_data['learning_rate'],
-            weight_method='uniform',
-            loss_function=model_data['loss_function'],
             mean=model_data['mean'],
             variance=model_data['variance'],
             lower_bound=model_data['lower_bound'],
             upper_bound=model_data['upper_bound'],
             seed=model_data['seed'],
             verbose=model_data['verbose'],
-            randomize=model_data['randomize']
+            randomize=model_data['randomize'], 
+            l1_lambda=model_data['l1_lambda'],
+            l2_lambda=model_data['l2_lambda'],
+            view_weight=model_data['view_weight'], 
+            Layers=model_data['Layers'],  # Load the layers
         )
-        model.weights = model_data['weights']
-        model.bias = model_data['bias']
+
+        """
+        x: np.ndarray | List,
+        y: np.ndarray | List,
+        x_val: Optional[np.ndarray | List],
+        y_val: Optional[np.ndarray | List],
+        total_layers: List[int],
+        activations: List[str] | str = "relu",
+        weight_method: str = "one",
+        loss_function: str = "mse",
+        batch_size: int = 1,
+        epochs: int = 5,
+        learning_rate: float = 0.01,
+        mean: Optional[int | float] = None,
+        variance: Optional[int | float] = None,
+        lower_bound: Optional[int | float] = None,
+        upper_bound: Optional[int | float] = None,
+        seed: Optional[int | float] = None,
+        verbose: Optional[bool] = False,
+        randomize: Optional[bool] = False,
+        l1_lambda: float = 0.0,
+        l2_lambda: float = 0.0, 
+        view_weight: bool = False, 
+    ):
+        """
 
         return model
 

@@ -174,5 +174,6 @@ cython_debug/
 .pypirc
 
 .vscode/
-output.txt
-src/output.txt
+output*
+src/output*
+src/*.pkl

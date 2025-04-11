@@ -2,9 +2,11 @@ from sklearn.datasets import fetch_openml
 
 import os
 import joblib  # For saving and loading the dataset
+from NeuralNetwork.Autograd import Scalar
+from NeuralNetwork.Visualize import draw_dot
 import numpy as np
-from NeuralNetwork.FFNN import FFNN
-
+from NeuralNetwork.WeightGenerator import normal_distribution
+from NeuralNetwork.FFNN import *
 def get_dataset(name: str = 'mnist_784'):
     """Get dataset from OpenML, checking local data folder first.
 
@@ -38,29 +40,21 @@ if X is not None:
     X = np.array(X)
     y = np.array(y)
 
-# for i in range(X.shape[0]):
-#     for j in range(X.shape[1]):
-#         X[i][j] = (X[i][j] - 0)/10
-
-X = np.array(X, dtype=np.float32) / 255.0
-y = np.array([float(y[i]) for i in range(len(y))])
-
-temp_x = X[0:2500]
-temp_y = y[0:2500]
-temp_x_val = X[100:200]
-temp_y_val = y[100:200]
-
-ffnn = FFNN(x=temp_x, y=temp_y, x_val=temp_x_val, y_val=temp_y_val, total_layers=[10], loss_function="mse", weight_method="xavier", learning_rate=0.01, activations=["relu", "softmax"], verbose=True, epochs=3, seed=42)
-
-ffnn.fit()
-# for i, weights in enumerate(ffnn.weights):
-#     print(f"Layer {i}:", weights)
-test = X[-50:]
-real = y[-50:]
+test = X[-20:]
+real = y[-20:]
 
 
-result = ffnn.predict(test)
-print("Prediction: ", result)
-print("Real: ", real)
-print(f"FFNN accuracy: {ffnn.accuracy(test, real, 'accuracy')}")
-ffnn.save_model("width-1.pkl")
+model = FFNN.load_model("model1.pkl")
+print(model.x)
+print(model.y)
+print(model.activations)
+print(model.total_layers)
+print(model.epochs)
+print(model.weight_method)
+print(model.learning_rate)
+print(model.loss_function)
+print(model.layers)
+
+print(f"FFNN accuracy: {model.accuracy(test, real, 'accuracy')}")
+
+# print(model.learning_rate)
