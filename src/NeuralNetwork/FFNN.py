@@ -2,7 +2,7 @@ from typing import List, Optional
 import pickle
 from tqdm import tqdm
 import numpy as np
-import pickle
+
 import matplotlib.pyplot as plt
 from NeuralNetwork.Accuracy import (
     accuracy,
@@ -149,7 +149,10 @@ class FFNN:
         self.layers = [Layer(input_dim=x.shape[1], output_dim=layers[0], activation=self.activations[0], weight_method=weight_method, seed=seed)]
         for i in range(1, len(layers)):
             self.layers.append(Layer(input_dim=layers[i-1], output_dim=layers[i], activation=self.activations[i], weight_method=weight_method, seed=seed)) 
-        # Loss value for each row of dataset
+        
+        # Losses
+        self.training_losses = []
+        self.validation_losses = []  # Only if you are calculating validation loss
 
         # Verbose
         self.verbose: bool = verbose
@@ -245,52 +248,13 @@ class FFNN:
 
         return softmax_probs
     
-    def compute_validation_loss(self, x_val, y_val):
-        num_val = len(x_val)
-        val_loss = 0
-
-        # One-hot encode validation labels
-        one_hot_y_val = np.zeros((num_val, 10))
-        for idx, val in enumerate(y_val):
-            one_hot_y_val[idx][val.value.astype(int)] = 1
-
-        for i in range(num_val):
-            # Forward pass for validation (no backward)
-            for j in range(len(self.num_layers)):
-                if j == 0:
-                    self.layers[j].net_input[i] = self.net(self.layers[j].weights, np.array([x_val[i]]).reshape(-1, 1), self.layers[j].bias)
-                else:
-                    self.layers[j].net_input[i] = self.net(self.layers[j].weights, self.layers[j - 1].output[i], self.layers[j].bias)
-
-                self.layers[j].output[i] = self.activate(self.activations[j], self.layers[j].net_input[i])
-
-            if self.activations[-1] == "softmax":
-                # Apply softmax to final layer
-                softmax_probs = self.softmax(self.layers[-1].output[i])
-                for idx, val in enumerate(self.layers[-1].output[i]):
-                    self.layers[-1].output[i][idx][0].value = softmax_probs[idx]
-
-                # Compute categorical cross-entropy loss
-                loss_value = self.loss(self.loss_function, one_hot_y_val[i], self.layers[-1].output[i])
-                val_loss += loss_value[0].value
-            else:
-                # If not softmax output
-                loss_value = self.loss(self.loss_function, [y_val[i]], self.layers[-1].output[i][0])
-                val_loss += loss_value.value
-
-        return val_loss / num_val
-
-
     def fit(self):
         """
         Train model with progress bar
         """
         num = len(self.x_train)
         indices = np.arange(num)
-        total_loss = 0
 
-        self.training_losses = []
-        self.validation_losses = []  # Only if you are calculating validation loss
 
         # One-hot encode the labels
         one_hot_y = np.zeros((num, 10))
@@ -307,7 +271,6 @@ class FFNN:
                 np.random.shuffle(indices)
 
             epoch_loss = 0
-            batch_count = 0
 
             # Create progress bar for batches
             batch_pbar = tqdm(range(0, num, self.batch_size),
@@ -320,7 +283,6 @@ class FFNN:
                 batch_indices = indices[batch_start:batch_end]
                 batch_size = len(batch_indices)
                 batch_loss = 0
-                total_grade = []
 
                 self._zero_gradients()
 
@@ -338,7 +300,7 @@ class FFNN:
 
 
                 for i in batch_indices:
-                    x_i = self.x[i]
+                    x_i = self.x_train[i]
                     y_true = one_hot_y[i]
 
                     layer_outputs = None
@@ -404,7 +366,7 @@ class FFNN:
             avg_epoch_loss = epoch_loss / (num / self.batch_size)
             self.training_losses.append(avg_epoch_loss)
 
-            #calculate validation loss 
+            # Calculate validation loss 
             if self.x_val is not None and self.y_val is not None: 
                 val_loss = self.compute_validation_loss(self.x_val, self.y_val)
                 self.validation_losses.append(val_loss)
@@ -417,6 +379,16 @@ class FFNN:
             self.plot_weights()
 
     def compute_validation_loss(self, X_val, y_val):
+        """
+        Calculate validation loss
+
+        Args:
+            X_val (_type_): _description_
+            y_val (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         result = []
         y_true = []
         for i in range(len(X_val)): 

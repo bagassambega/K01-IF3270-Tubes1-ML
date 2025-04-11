@@ -1,11 +1,8 @@
 from sklearn.datasets import fetch_openml
 import os
 import joblib  # For saving and loading the dataset
-from NeuralNetwork.Autograd import Scalar
-from NeuralNetwork.Visualize import draw_dot
 import numpy as np
-from NeuralNetwork.WeightGenerator import normal_distribution
-from NeuralNetwork.FFNN import *
+from NeuralNetwork.FFNN import FFNN
 
 def get_dataset(name: str = 'mnist_784'):
     """Get dataset from OpenML, checking local data folder first.
