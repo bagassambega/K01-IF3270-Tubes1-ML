@@ -176,3 +176,4 @@ cython_debug/
 .vscode/
 output*
 src/output*
+src/*.pkl
