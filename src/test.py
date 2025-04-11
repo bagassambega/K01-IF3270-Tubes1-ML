@@ -69,12 +69,12 @@ ffnn = FFNN(x=temp_x,
 ffnn.fit()
 # for i, weights in enumerate(ffnn.weights):
 #     print(f"Layer {i}:", weights)
-test = X[-20:]
-real = y[-20:]
+test = X[-50:]
+real = y[-50:]
 
 
 result = ffnn.predict(test)
 print("Prediction: ", result)
 print("Real: ", real)
 print(f"FFNN accuracy: {ffnn.accuracy(test, real, 'accuracy')}")
-# ffnn.save_model("model1.pkl")
+ffnn.save_model("width-1.pkl")
