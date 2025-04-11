@@ -202,13 +202,21 @@ class FFNN:
 
         # Add L1 regularization
         if self.l1_lambda > 0:
-            l1_loss = sum(abs(w) for layer in self.layers for neuron in layer.weights  for w in neuron)
-            loss += self.l1_lambda * l1_loss
+            l1_theta = sum(
+                    abs(w) for layer in self.layers 
+                    for neuron in layer.weights 
+                    for w in neuron
+                )   
+            loss = loss + self.l1_lambda * l1_theta
 
         # Add L2 regularization
         if self.l2_lambda > 0:
-            l2_loss = sum(w**2 for layer in self.layers for neuron in layer.weights for w in neuron)
-            loss += self.l2_lambda * l2_loss
+            l2_theta = sum(
+                    w**2 for layer in self.layers 
+                    for neuron in layer.weights 
+                    for w in neuron
+                )
+            loss += self.l2_lambda * l2_theta
 
         return loss
 
